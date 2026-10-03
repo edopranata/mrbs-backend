@@ -28,6 +28,7 @@ lantai 1–4). Data ruangan sebenarnya disimpan di `database/seeders/RoomSeeder.
 | Hapus booking permanen | – | ✅ | ✅ |
 | Kelola ruangan (tambah, ubah, nonaktifkan, hapus) | – | ✅ | ✅ |
 | Kelola user (tambah, ubah level, nonaktifkan, hapus) | – | ✅ (kecuali akun System Admin) | ✅ (termasuk System Admin) |
+| Menu **Semua Booking**: pantauan booking hari ini (sedang berlangsung & akan datang) | – | ✅ | ✅ |
 | Statistik pemakaian ruangan bulanan | – | ✅ | ✅ |
 | Menu **Pengaturan** aplikasi | – | – | ✅ |
 
@@ -87,16 +88,39 @@ beberapa hari kerja di sekitar hari ini. Untuk mengulang dari awal: `php artisan
 Lalu jalankan frontend dari repository [mrbs-vue](https://github.com/edopranata/mrbs-vue); saat
 development, Vite meneruskan request `/api/*` ke `http://127.0.0.1:8000`.
 
+## Frontend dalam satu domain (public/app)
+
+Frontend Vue bisa disajikan langsung oleh Laravel. Dari repository
+[mrbs-vue](https://github.com/edopranata/mrbs-vue) (diletakkan bersebelahan dengan folder backend):
+
+```bash
+npm run build:laravel       # hasil build -> ../backend/public/app
+```
+
+Setelah itu semua URL halaman (`/`, `/jadwal`, `/admin/users`, …) menampilkan
+`public/app/index.html`, sedangkan `/api/*` dan `/up` tetap ditangani Laravel:
+
+- **Apache**: aturan di `public/.htaccess` mengarahkan URL halaman langsung ke `app/index.html`
+  (tanpa PHP). `index.html` tidak di-cache, aset `app/assets/*` di-cache 1 tahun.
+- **Nginx / `php artisan serve`**: ditangani `SpaController` (route `/` dan fallback di
+  `routes/web.php`), tanpa membuat session/cookie.
+
+Bila folder `public/app` belum ada, membuka halaman menampilkan pesan untuk menjalankan
+`npm run build:laravel`.
+
 ## Akun default
 
-| Level | Email | Password |
-|---|---|---|
-| System Admin | `sysadmin@kantor.test` | `password` |
-| Admin | `admin@kantor.test` | `password` |
-| User | `user@kantor.test` | `password` |
+Login memakai **username** (tidak peka huruf besar/kecil), bukan email.
 
-> **Ganti password akun-akun ini** (menu Profil) sebelum aplikasi dipakai di kantor. Menjalankan
-> ulang seeder tidak menimpa akun yang sudah ada.
+| Level | Username | Password |
+|---|---|---|
+| System Admin | `sysadmin` | `password` |
+| Admin | `admin` | `password` |
+| User | `user` | `password` |
+
+> Akun default hanya dibuat di lingkungan non-production. **Di server produksi** buat akun dengan
+> `php artisan mrbs:create-sysadmin` (lihat bagian deploy). Menjalankan ulang seeder tidak menimpa
+> akun yang sudah ada.
 
 ## Menjalankan test
 
@@ -133,13 +157,27 @@ Arahkan web server ke folder `public`. Laravel secara default mengizinkan CORS u
 frontend berada di domain lain dan ingin dibatasi, jalankan `php artisan config:publish cors` lalu
 atur `allowed_origins`.
 
+### Membuat akun System Admin di server
+
+Di `APP_ENV=production`, seeder **tidak** membuat akun default (yang berpassword `password`).
+Buat akun System Admin pertama dengan:
+
+```bash
+php artisan mrbs:create-sysadmin
+```
+
+Command akan menanyakan username, nama, email, dan password (diketik tersembunyi + konfirmasi).
+Untuk otomatisasi bisa memakai opsi `--username= --name= --email= --password=` (hindari `--password`
+di shell bersama karena tersimpan di riwayat). Bila username sudah ada, tambahkan `--force` untuk
+menjadikannya System Admin, mengaktifkannya, dan mengganti passwordnya (sesi lamanya dicabut).
+
 ## Ringkasan API
 
 Semua endpoint berawalan `/api` dan (kecuali login) memakai header `Authorization: Bearer <token>`.
 
 | Method | Endpoint | Akses | Keterangan |
 |---|---|---|---|
-| POST | `/auth/login` | publik | `{email, password}` → `{token, user}` (maks. 10 percobaan/menit) |
+| POST | `/auth/login` | publik | `{username, password}` → `{token, user}` (maks. 10 percobaan/menit) |
 | GET | `/auth/me` | login | Data user yang login |
 | POST | `/auth/logout` | login | Cabut token |
 | PUT | `/auth/profile` | login | Ubah nama, divisi, telepon |
@@ -156,6 +194,7 @@ Semua endpoint berawalan `/api` dan (kecuali login) memakai header `Authorizatio
 | POST / PUT / DELETE | `/rooms`, `/rooms/{id}` | admin | Kelola ruangan |
 | GET | `/bookings` | login | Filter: `mine`, `room_id`, `user_id`, `status`, `period=upcoming\|past`, `date_from`, `date_to`, `search`, `page` |
 | POST | `/bookings` | login | `{room_id, title, start_at, end_at, type?, participants?, description?, repeat_weeks?, skip_conflicts?}`. `type`: `internal` (default) / `external`. Dengan `repeat_weeks` > 1 respons berisi daftar booking + `skipped` |
+| GET | `/bookings/today` | admin | Booking hari ini yang sedang berlangsung (`ongoing`) & akan datang (`upcoming`); yang sudah selesai/dibatalkan tidak disertakan |
 | GET | `/bookings/occurrences?room_id=&start_at=&end_at=&repeat_weeks=` | login | Pratinjau tanggal booking mingguan beserta status tersedia/alasan |
 | GET | `/bookings/{id}` | login | Detail booking |
 | PUT | `/bookings/{id}` | pemilik / admin | Ubah booking |
