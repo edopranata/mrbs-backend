@@ -9,12 +9,13 @@ use Illuminate\Database\Seeder;
 class UserSeeder extends Seeder
 {
     /**
-     * Akun default. Memakai firstOrCreate agar menjalankan ulang seeder tidak
+     * Akun default (login memakai username). Memakai firstOrCreate agar menjalankan ulang seeder tidak
      * menimpa password/data akun yang sudah diubah.
      */
     public function run(): void
     {
-        User::firstOrCreate(['email' => 'sysadmin@kantor.test'], [
+        User::firstOrCreate(['username' => 'sysadmin'], [
+            'email' => 'sysadmin@kantor.test',
             'name' => 'System Administrator',
             'password' => 'password',
             'role' => UserRole::SystemAdmin,
@@ -22,7 +23,8 @@ class UserSeeder extends Seeder
             'is_active' => true,
         ]);
 
-        User::firstOrCreate(['email' => 'admin@kantor.test'], [
+        User::firstOrCreate(['username' => 'admin'], [
+            'email' => 'admin@kantor.test',
             'name' => 'Administrator',
             'password' => 'password',
             'role' => UserRole::Admin,
@@ -30,7 +32,8 @@ class UserSeeder extends Seeder
             'is_active' => true,
         ]);
 
-        User::firstOrCreate(['email' => 'user@kantor.test'], [
+        User::firstOrCreate(['username' => 'user'], [
+            'email' => 'user@kantor.test',
             'name' => 'Pegawai Contoh',
             'password' => 'password',
             'role' => UserRole::User,

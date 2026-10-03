@@ -14,6 +14,13 @@ class UserRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('username')) {
+            $this->merge(['username' => strtolower(trim((string) $this->input('username')))]);
+        }
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -23,6 +30,10 @@ class UserRequest extends FormRequest
 
         return [
             'name' => [$creating ? 'required' : 'sometimes', 'string', 'max:255'],
+            'username' => [
+                $creating ? 'required' : 'sometimes', 'string', 'min:3', 'max:50', 'regex:/^[a-z0-9._-]+$/',
+                Rule::unique('users', 'username')->ignore($this->route('user')),
+            ],
             'email' => [
                 $creating ? 'required' : 'sometimes', 'email', 'max:255',
                 Rule::unique('users', 'email')->ignore($this->route('user')),
@@ -38,10 +49,21 @@ class UserRequest extends FormRequest
     /**
      * @return array<string, string>
      */
+    public function messages(): array
+    {
+        return [
+            'username.regex' => 'Username hanya boleh berisi huruf kecil, angka, titik (.), garis bawah (_), atau strip (-), tanpa spasi.',
+        ];
+    }
+
+    /**
+     * @return array<string, string>
+     */
     public function attributes(): array
     {
         return [
             'name' => 'nama',
+            'username' => 'username',
             'role' => 'level',
             'department' => 'divisi',
             'phone' => 'no. telepon',

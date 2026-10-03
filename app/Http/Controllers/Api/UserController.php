@@ -20,6 +20,7 @@ class UserController extends Controller
             ->when($request->filled('search'), function ($q) use ($request) {
                 $term = '%'.$request->input('search').'%';
                 $q->where(fn ($q) => $q->where('name', 'like', $term)
+                    ->orWhere('username', 'like', $term)
                     ->orWhere('email', 'like', $term)
                     ->orWhere('department', 'like', $term));
             })

@@ -89,7 +89,7 @@ class SystemAdminTest extends TestCase
         $user = User::factory()->create();
 
         $this->actingAs($admin)->postJson('/api/users', [
-            'name' => 'X', 'email' => 'x@kantor.test', 'password' => 'rahasia123', 'role' => 'system_admin',
+            'name' => 'X', 'username' => 'userx', 'email' => 'x@kantor.test', 'password' => 'rahasia123', 'role' => 'system_admin',
         ])->assertForbidden();
         $this->actingAs($admin)->putJson("/api/users/{$user->id}", ['role' => 'system_admin'])->assertForbidden();
         $this->actingAs($admin)->putJson("/api/users/{$sysadmin->id}", ['name' => 'Ganti'])->assertForbidden();

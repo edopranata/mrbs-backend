@@ -11,13 +11,18 @@ class LoginRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        $this->merge(['username' => strtolower(trim((string) $this->input('username')))]);
+    }
+
     /**
      * @return array<string, mixed>
      */
     public function rules(): array
     {
         return [
-            'email' => ['required', 'email'],
+            'username' => ['required', 'string', 'max:50'],
             'password' => ['required', 'string'],
             'device_name' => ['nullable', 'string', 'max:100'],
         ];

@@ -63,13 +63,32 @@ class AdminAccessTest extends TestCase
         $admin = User::factory()->admin()->create();
 
         $id = $this->actingAs($admin)->postJson('/api/users', [
-            'name' => 'Siti', 'email' => 'siti@kantor.test', 'password' => 'rahasia123', 'role' => 'user',
+            'name' => 'Siti', 'username' => 'siti', 'email' => 'siti@kantor.test', 'password' => 'rahasia123', 'role' => 'user',
         ])->assertCreated()->json('data.id');
 
         $this->actingAs($admin)->putJson("/api/users/{$id}", ['role' => 'admin'])
             ->assertOk()->assertJsonPath('data.role', 'admin');
 
         $this->actingAs($admin)->deleteJson("/api/users/{$id}")->assertOk();
+    }
+
+    public function test_username_is_required_unique_and_well_formed(): void
+    {
+        $admin = User::factory()->admin()->create();
+        User::factory()->create(['username' => 'budi']);
+        $payload = ['name' => 'Budi Lain', 'email' => 'budi2@kantor.test', 'password' => 'rahasia123', 'role' => 'user'];
+
+        $this->actingAs($admin)->postJson('/api/users', $payload)->assertJsonValidationErrors('username');
+        $this->actingAs($admin)->postJson('/api/users', [...$payload, 'username' => 'BUDI'])
+            ->assertJsonValidationErrors('username');
+        $this->actingAs($admin)->postJson('/api/users', [...$payload, 'username' => 'budi santoso'])
+            ->assertJsonValidationErrors('username');
+        $this->actingAs($admin)->postJson('/api/users', [...$payload, 'username' => 'ab'])
+            ->assertJsonValidationErrors('username');
+
+        $this->actingAs($admin)->postJson('/api/users', [...$payload, 'username' => 'Budi.Santoso'])
+            ->assertCreated()
+            ->assertJsonPath('data.username', 'budi.santoso');
     }
 
     public function test_admin_cannot_demote_or_delete_self(): void

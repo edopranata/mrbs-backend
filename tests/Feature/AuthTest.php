@@ -12,34 +12,47 @@ class AuthTest extends TestCase
 
     public function test_user_can_login_and_receive_token(): void
     {
-        $user = User::factory()->create(['email' => 'budi@kantor.test']);
+        $user = User::factory()->create(['username' => 'budi']);
 
         $response = $this->postJson('/api/auth/login', [
-            'email' => 'budi@kantor.test',
+            'username' => 'budi',
             'password' => 'password',
         ]);
 
         $response->assertOk()
-            ->assertJsonStructure(['token', 'user' => ['id', 'name', 'email', 'role']])
+            ->assertJsonStructure(['token', 'user' => ['id', 'name', 'username', 'email', 'role']])
             ->assertJsonPath('user.id', $user->id);
     }
 
     public function test_login_fails_with_wrong_password(): void
     {
-        User::factory()->create(['email' => 'budi@kantor.test']);
+        User::factory()->create(['username' => 'budi']);
 
-        $this->postJson('/api/auth/login', ['email' => 'budi@kantor.test', 'password' => 'salah'])
+        $this->postJson('/api/auth/login', ['username' => 'budi', 'password' => 'salah'])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors('email');
+            ->assertJsonValidationErrors('username');
     }
 
     public function test_inactive_user_cannot_login(): void
     {
-        User::factory()->inactive()->create(['email' => 'budi@kantor.test']);
+        User::factory()->inactive()->create(['username' => 'budi']);
 
-        $this->postJson('/api/auth/login', ['email' => 'budi@kantor.test', 'password' => 'password'])
+        $this->postJson('/api/auth/login', ['username' => 'budi', 'password' => 'password'])
             ->assertUnprocessable()
-            ->assertJsonValidationErrors('email');
+            ->assertJsonValidationErrors('username');
+    }
+
+    public function test_login_uses_username_case_insensitively(): void
+    {
+        User::factory()->create(['username' => 'budi', 'email' => 'budi@kantor.test']);
+
+        $this->postJson('/api/auth/login', ['username' => '  BUDI ', 'password' => 'password'])->assertOk();
+
+        // Email tidak lagi bisa dipakai untuk login
+        $this->postJson('/api/auth/login', ['username' => 'budi@kantor.test', 'password' => 'password'])
+            ->assertJsonValidationErrors('username');
+        $this->postJson('/api/auth/login', ['email' => 'budi@kantor.test', 'password' => 'password'])
+            ->assertJsonValidationErrors('username');
     }
 
     public function test_protected_routes_require_token(): void
@@ -49,8 +62,8 @@ class AuthTest extends TestCase
 
     public function test_logout_revokes_token(): void
     {
-        User::factory()->create(['email' => 'budi@kantor.test']);
-        $token = $this->postJson('/api/auth/login', ['email' => 'budi@kantor.test', 'password' => 'password'])
+        User::factory()->create(['username' => 'budi']);
+        $token = $this->postJson('/api/auth/login', ['username' => 'budi', 'password' => 'password'])
             ->json('token');
 
         $this->withToken($token)->postJson('/api/auth/logout')->assertOk();
