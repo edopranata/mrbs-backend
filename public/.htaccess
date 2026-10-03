@@ -18,6 +18,10 @@
     RewriteCond %{REQUEST_URI} (.+)/$
     RewriteRule ^ %1 [L,R=301]
 
+    # PWA: service worker hasil build ada di app/sw.js tetapi harus tersaji dari /sw.js agar
+    # mencakup seluruh halaman. /manifest.webmanifest dibuat Laravel (nama dari Pengaturan).
+    RewriteRule ^sw\.js$ app/sw.js [L]
+
     # Frontend Vue (public/app, hasil `npm run build:laravel`):
     # URL halaman (/, /jadwal, /admin/users, ...) langsung diarahkan ke app/index.html tanpa
     # melewati PHP. URL API, health check, dan file yang benar-benar ada tidak terpengaruh.
@@ -27,6 +31,7 @@
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_URI} !^/(api|up|storage)(/|$)
+    RewriteCond %{REQUEST_URI} !^/manifest\.webmanifest$
     RewriteCond %{DOCUMENT_ROOT}/app/index.html -f
     RewriteRule ^ app/index.html [L]
 
@@ -37,8 +42,8 @@
 </IfModule>
 
 <IfModule mod_headers.c>
-    # index.html frontend selalu dicek ulang agar versi terbaru langsung terpakai setelah deploy.
-    <FilesMatch "^index\.html$">
+    # index.html & service worker selalu dicek ulang agar versi terbaru langsung terpakai.
+    <FilesMatch "^(index\.html|sw\.js)$">
         Header set Cache-Control "no-cache, no-store, must-revalidate"
     </FilesMatch>
 
