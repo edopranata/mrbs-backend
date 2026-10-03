@@ -48,7 +48,7 @@ class CreateSystemAdmin extends Command
             [
                 'name' => ['required', 'string', 'max:255'],
                 'username' => [
-                    'required', 'string', 'min:3', 'max:50', 'regex:/^[a-z0-9._-]+$/',
+                    'required', 'string', 'min:2', 'max:50', 'regex:/^[a-z0-9._-]+$/',
                     Rule::unique('users', 'username')->ignore($existing),
                 ],
                 'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($existing)],

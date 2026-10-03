@@ -83,12 +83,18 @@ class AdminAccessTest extends TestCase
             ->assertJsonValidationErrors('username');
         $this->actingAs($admin)->postJson('/api/users', [...$payload, 'username' => 'budi santoso'])
             ->assertJsonValidationErrors('username');
-        $this->actingAs($admin)->postJson('/api/users', [...$payload, 'username' => 'ab'])
+        $this->actingAs($admin)->postJson('/api/users', [...$payload, 'username' => 'a'])
             ->assertJsonValidationErrors('username');
 
         $this->actingAs($admin)->postJson('/api/users', [...$payload, 'username' => 'Budi.Santoso'])
             ->assertCreated()
             ->assertJsonPath('data.username', 'budi.santoso');
+
+        // Username singkatan 2 huruf (mis. nama unit "it") diperbolehkan dan tetap bisa disunting.
+        $id = $this->actingAs($admin)->postJson('/api/users', [...$payload, 'username' => 'it', 'email' => 'it@kantor.test'])
+            ->assertCreated()
+            ->json('data.id');
+        $this->actingAs($admin)->putJson("/api/users/{$id}", ['username' => 'it', 'name' => 'IT'])->assertOk();
     }
 
     public function test_admin_cannot_demote_or_delete_self(): void

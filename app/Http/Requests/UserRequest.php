@@ -31,7 +31,7 @@ class UserRequest extends FormRequest
         return [
             'name' => [$creating ? 'required' : 'sometimes', 'string', 'max:255'],
             'username' => [
-                $creating ? 'required' : 'sometimes', 'string', 'min:3', 'max:50', 'regex:/^[a-z0-9._-]+$/',
+                $creating ? 'required' : 'sometimes', 'string', 'min:2', 'max:50', 'regex:/^[a-z0-9._-]+$/',
                 Rule::unique('users', 'username')->ignore($this->route('user')),
             ],
             'email' => [
