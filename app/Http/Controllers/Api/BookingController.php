@@ -81,6 +81,32 @@ class BookingController extends Controller
     }
 
     /**
+     * Pantauan admin: booking hari ini yang sedang berlangsung dan yang akan datang.
+     * Booking yang sudah selesai atau dibatalkan tidak ditampilkan.
+     */
+    public function today(Request $request): JsonResponse
+    {
+        $now = now();
+
+        $bookings = Booking::query()
+            ->confirmed()
+            ->with(['room', 'user'])
+            ->whereBetween('start_at', [today(), today()->endOfDay()])
+            ->where('end_at', '>', $now)
+            ->orderBy('start_at')
+            ->get();
+
+        [$ongoing, $upcoming] = $bookings->partition(fn (Booking $b) => $b->start_at->lte($now));
+
+        return response()->json([
+            'date' => today()->toDateString(),
+            'server_time' => $now->format('Y-m-d\TH:i:s'),
+            'ongoing' => BookingResource::collection($ongoing->values())->resolve($request),
+            'upcoming' => BookingResource::collection($upcoming->values())->resolve($request),
+        ]);
+    }
+
+    /**
      * Pratinjau tanggal-tanggal booking mingguan beserta ketersediaannya.
      */
     public function occurrences(Request $request): JsonResponse
