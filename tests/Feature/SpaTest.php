@@ -12,7 +12,7 @@ class SpaTest extends TestCase
     {
         parent::setUp();
 
-        $this->index = tempnam(sys_get_temp_dir(), 'spa').'.html';
+        $this->index = sys_get_temp_dir().'/mrbs-spa-'.bin2hex(random_bytes(6)).'.html';
         file_put_contents($this->index, '<!doctype html><div id="app"></div>');
         config(['mrbs.spa_index' => $this->index]);
     }
