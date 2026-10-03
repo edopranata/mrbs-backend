@@ -29,3 +29,6 @@ Thumbs.db
 # Data ruangan sebenarnya (gedung kantor) tidak disimpan di repository.
 # Tanpa file ini, DatabaseSeeder memakai DummyRoomSeeder (data fiktif).
 /database/seeders/RoomSeeder.php
+
+# Akun unit kerja asli beserta password awalnya: unggah manual ke server, jangan di-commit.
+/database/seeders/OfficeUserSeeder.php

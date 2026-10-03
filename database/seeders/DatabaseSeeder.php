@@ -21,6 +21,11 @@ class DatabaseSeeder extends Seeder
             UserSeeder::class,
         ]);
 
+        // Akun unit kerja asli (tidak ikut git); hanya dijalankan bila file-nya ada.
+        if (class_exists(OfficeUserSeeder::class)) {
+            $this->call(OfficeUserSeeder::class);
+        }
+
         if (app()->isLocal()) {
             $this->call(DemoBookingSeeder::class);
         }
