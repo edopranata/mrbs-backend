@@ -14,6 +14,13 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
+        // Akun default berpassword "password" tidak boleh ada di server produksi.
+        if (app()->isProduction()) {
+            $this->command?->warn('Akun default dilewati (APP_ENV=production). Buat System Admin dengan: php artisan mrbs:create-sysadmin');
+
+            return;
+        }
+
         User::firstOrCreate(['username' => 'sysadmin'], [
             'email' => 'sysadmin@kantor.test',
             'name' => 'System Administrator',
