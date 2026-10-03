@@ -1,0 +1,22 @@
+# Untuk hosting yang memasang repository ini langsung di public_html (document root tidak
+# bisa diarahkan ke folder public/, mis. deploy GIT di Hostinger).
+#
+# Semua request diteruskan ke folder public/, sehingga aplikasi tampil normal dan file
+# aplikasi (.env, vendor/, storage/, .git/, composer.json, ...) tidak pernah bisa diakses
+# dari web. Bila document root sudah mengarah ke public/, file ini tidak terpakai.
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Teruskan header Authorization (token login API) ke Laravel.
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+
+# Tanpa mod_rewrite, jangan pernah sajikan isi folder aplikasi.
+<IfModule !mod_rewrite.c>
+    Require all denied
+</IfModule>

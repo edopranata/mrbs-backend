@@ -157,6 +157,13 @@ Arahkan web server ke folder `public`. Laravel secara default mengizinkan CORS u
 frontend berada di domain lain dan ingin dibatasi, jalankan `php artisan config:publish cors` lalu
 atur `allowed_origins`.
 
+### Hosting tanpa pengaturan document root (mis. deploy GIT Hostinger ke `public_html`)
+
+Idealnya document root web diarahkan ke folder `public/`. Bila repository terpasang langsung di
+`public_html` dan document root tidak bisa diubah, file `.htaccess` di root repository meneruskan
+semua request ke `public/`. Dengan begitu aplikasi tampil normal (bukan *403 Forbidden*) dan file
+aplikasi seperti `.env`, `vendor/`, `storage/`, dan `.git/` tidak bisa diakses dari web.
+
 ### Membuat akun System Admin di server
 
 Di `APP_ENV=production`, seeder **tidak** membuat akun default (yang berpassword `password`).
