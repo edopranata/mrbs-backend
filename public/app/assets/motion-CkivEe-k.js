@@ -1,0 +1,1 @@
+function e(e,t=40,n=400){return{animationDelay:`${Math.min(e*t,n)}ms`}}export{e as t};
