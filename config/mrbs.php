@@ -16,6 +16,9 @@ return [
 
     'app_subtitle' => env('MRBS_APP_SUBTITLE', 'Booking Ruang Rapat'),
 
+    // index.html frontend Vue hasil `npm run build:laravel`, disajikan untuk semua URL halaman.
+    'spa_index' => public_path('app/index.html'),
+
     /*
     |--------------------------------------------------------------------------
     | Jam Operasional Ruang Rapat
