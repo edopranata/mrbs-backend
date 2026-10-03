@@ -157,12 +157,32 @@ Arahkan web server ke folder `public`. Laravel secara default mengizinkan CORS u
 frontend berada di domain lain dan ingin dibatasi, jalankan `php artisan config:publish cors` lalu
 atur `allowed_origins`.
 
+### PWA
+
+Frontend di `public/app` adalah PWA. Backend menyajikan `/sw.js` (dari `public/app/sw.js`, tanpa
+cache) dan `/manifest.webmanifest` (nama aplikasi dari menu Pengaturan) lewat `PwaController`; di
+Apache/LiteSpeed `/sw.js` langsung diarahkan oleh `public/.htaccess`. PWA membutuhkan HTTPS.
+
 ### Hosting tanpa pengaturan document root (mis. deploy GIT Hostinger ke `public_html`)
 
 Idealnya document root web diarahkan ke folder `public/`. Bila repository terpasang langsung di
 `public_html` dan document root tidak bisa diubah, file `.htaccess` di root repository meneruskan
 semua request ke `public/`. Dengan begitu aplikasi tampil normal (bukan *403 Forbidden*) dan file
 aplikasi seperti `.env`, `vendor/`, `storage/`, dan `.git/` tidak bisa diakses dari web.
+
+### PHP & Composer di SSH (shared hosting)
+
+Bila `php -v` di SSH masih versi lama padahal PHP website sudah diganti di panel hosting, jalankan
+dari folder aplikasi:
+
+```bash
+bash scripts/php-cli.sh        # pakai versi PHP tertinggi yang tersedia (atau: bash scripts/php-cli.sh 8.5)
+source ~/.bashrc
+```
+
+Script membuat `~/bin/php` dan `~/bin/composer` (Composer selalu dijalankan dengan PHP tersebut),
+menaruh `~/bin` di PATH secara permanen, lalu menjalankan `composer check-platform-reqs`. Aman
+dijalankan ulang. Build otomatis dari panel hosting tetap memakai versi PHP yang dipilih di panel.
 
 ### Membuat akun System Admin di server
 
