@@ -56,7 +56,7 @@ class AuthController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'department' => ['nullable', 'string', 'max:100'],
             'phone' => ['nullable', 'string', 'max:30'],
-        ], attributes: ['name' => 'nama', 'department' => 'divisi', 'phone' => 'no. telepon']);
+        ], attributes: ['name' => 'nama', 'department' => 'department', 'phone' => 'no. telepon']);
 
         $request->user()->update($data);
 

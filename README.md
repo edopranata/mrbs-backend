@@ -207,7 +207,7 @@ Semua endpoint berawalan `/api` dan (kecuali login) memakai header `Authorizatio
 | POST | `/auth/login` | publik | `{username, password}` → `{token, user}` (maks. 10 percobaan/menit) |
 | GET | `/auth/me` | login | Data user yang login |
 | POST | `/auth/logout` | login | Cabut token |
-| PUT | `/auth/profile` | login | Ubah nama, divisi, telepon |
+| PUT | `/auth/profile` | login | Ubah nama, department, telepon |
 | PUT | `/auth/password` | login | `{current_password, password, password_confirmation}` |
 | GET | `/settings` | publik | Nama aplikasi, jam operasional & aturan booking yang berlaku |
 | GET | `/settings/manage` | system admin | Nilai berlaku, nilai default (.env), dan kunci yang ditimpa |

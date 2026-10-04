@@ -65,7 +65,7 @@ class UserRequest extends FormRequest
             'name' => 'nama',
             'username' => 'username',
             'role' => 'level',
-            'department' => 'divisi',
+            'department' => 'department',
             'phone' => 'no. telepon',
         ];
     }
