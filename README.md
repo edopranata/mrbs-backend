@@ -274,14 +274,16 @@ Langkah di server (hPanel):
    ```
 
    lalu `php artisan config:cache` (bila konfigurasi di-cache).
-5. hPanel → **Advanced → Cron Jobs**, tambahkan perintah yang dijalankan **setiap menit**:
+5. hPanel → **Advanced → Cron Jobs** → pilih **Kustom**, jadwal **setiap menit** (`* * * * *`):
 
    ```bash
-   cd /home/<user>/domains/<domain>/public_html && php artisan schedule:run >> /dev/null 2>&1
+   /bin/bash /home/<user>/domains/<domain>/public_html/scripts/cron-schedule.sh
    ```
 
-   (sesuaikan path dengan lokasi aplikasi; pakai binary PHP yang sama dengan versi aplikasi bila
-   `php` default berbeda, lihat `scripts/php-cli.sh`).
+   `scripts/cron-schedule.sh` pindah sendiri ke folder aplikasi dan memilih PHP ≥ 8.4 (bukan
+   `/usr/bin/php` bawaan hPanel yang bisa lebih lama; paksa dengan `PHP_BIN=...` bila perlu).
+   Cek lokasi aplikasi lewat SSH: `ls ~/domains/*/public_html/artisan`. Keluaran putaran terakhir ada
+   di `storage/logs/cron-schedule.log`; bila gagal, pesannya juga tampil di "Lihat Output" hPanel.
 
 Hasil tiap sinkronisasi dicatat di `storage/logs/legacy-sync.log`, dan peringatan (pembuat/ruangan
 belum dipetakan, bentrok) juga masuk `storage/logs/laravel.log`. Setelah masa transisi selesai,
