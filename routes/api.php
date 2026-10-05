@@ -33,7 +33,7 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::get('/bookings', [BookingController::class, 'index']);
     Route::get('/bookings/occurrences', [BookingController::class, 'occurrences']);
     // Didaftarkan sebelum /bookings/{booking} agar "today" tidak dianggap ID booking.
-    Route::get('/bookings/today', [BookingController::class, 'today'])->middleware('admin');
+    Route::get('/bookings/today', [BookingController::class, 'today'])->middleware('monitor');
     Route::post('/bookings', [BookingController::class, 'store']);
     Route::get('/bookings/{booking}', [BookingController::class, 'show']);
     Route::put('/bookings/{booking}', [BookingController::class, 'update']);

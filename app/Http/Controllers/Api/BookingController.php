@@ -60,6 +60,8 @@ class BookingController extends Controller
 
     public function store(BookingRequest $request): JsonResponse
     {
+        Gate::authorize('create', Booking::class);
+
         $data = $request->safe()->except(['repeat_weeks', 'skip_conflicts']);
         $weeks = (int) $request->validated('repeat_weeks', 1);
 

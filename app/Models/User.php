@@ -55,6 +55,21 @@ class User extends Authenticatable
     }
 
     /**
+     * View Only: hanya melihat Dashboard, Jadwal Ruangan, dan Semua Booking; tidak bisa membuat,
+     * mengubah, atau membatalkan booking.
+     */
+    public function isViewer(): bool
+    {
+        return $this->role === UserRole::Viewer;
+    }
+
+    /** Boleh melihat pantauan Semua Booking (booking hari ini milik semua orang). */
+    public function canMonitorBookings(): bool
+    {
+        return $this->isAdmin() || $this->isViewer();
+    }
+
+    /**
      * System Admin: semua fitur admin + pengaturan aplikasi & kelola akun System Admin.
      */
     public function isSystemAdmin(): bool

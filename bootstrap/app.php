@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureUserCanMonitorBookings;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\EnsureUserIsSystemAdmin;
@@ -18,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'admin' => EnsureUserIsAdmin::class,
+            'monitor' => EnsureUserCanMonitorBookings::class,
             'active' => EnsureUserIsActive::class,
             'system_admin' => EnsureUserIsSystemAdmin::class,
         ]);

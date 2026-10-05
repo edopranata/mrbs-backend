@@ -20,17 +20,20 @@ lantai 1–4). Data ruangan sebenarnya disimpan di `database/seeders/RoomSeeder.
 
 ## Level user
 
-| Fitur | User | Admin | System Admin |
-|---|:-:|:-:|:-:|
-| Lihat jadwal semua ruangan (per hari, per lantai) | ✅ | ✅ | ✅ |
-| Buat booking | ✅ (maks. 60 hari ke depan) | ✅ (tanpa batas) | ✅ (tanpa batas) |
-| Ubah / batalkan booking | Milik sendiri | Semua booking | Semua booking |
-| Hapus booking permanen | – | ✅ | ✅ |
-| Kelola ruangan (tambah, ubah, nonaktifkan, hapus) | – | ✅ | ✅ |
-| Kelola user (tambah, ubah level, nonaktifkan, hapus) | – | ✅ (kecuali akun System Admin) | ✅ (termasuk System Admin) |
-| Menu **Semua Booking**: pantauan booking hari ini (sedang berlangsung & akan datang) | – | ✅ | ✅ |
-| Statistik pemakaian ruangan bulanan | – | ✅ | ✅ |
-| Menu **Pengaturan** aplikasi | – | – | ✅ |
+| Fitur | View Only | User | Admin | System Admin |
+|---|:-:|:-:|:-:|:-:|
+| Lihat jadwal semua ruangan (per hari, per lantai) | ✅ | ✅ | ✅ | ✅ |
+| Buat booking | – | ✅ (maks. 60 hari ke depan) | ✅ (tanpa batas) | ✅ (tanpa batas) |
+| Ubah / batalkan booking | – | Milik sendiri | Semua booking | Semua booking |
+| Hapus booking permanen | – | – | ✅ | ✅ |
+| Kelola ruangan (tambah, ubah, nonaktifkan, hapus) | – | – | ✅ | ✅ |
+| Kelola user (tambah, ubah level, nonaktifkan, hapus) | – | – | ✅ (kecuali akun System Admin) | ✅ (termasuk System Admin) |
+| Menu **Semua Booking**: pantauan booking hari ini (sedang berlangsung & akan datang) | ✅ | – | ✅ | ✅ |
+| Statistik pemakaian ruangan bulanan | – | – | ✅ | ✅ |
+| Menu **Pengaturan** aplikasi | – | – | – | ✅ |
+
+Level **View Only** cocok untuk resepsionis/sekretariat yang hanya perlu memantau: menunya hanya
+Dashboard, Jadwal Ruangan, dan Semua Booking (plus Profil untuk ganti password).
 
 ### Menu Pengaturan (System Admin)
 

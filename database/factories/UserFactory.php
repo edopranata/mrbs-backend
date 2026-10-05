@@ -52,6 +52,13 @@ class UserFactory extends Factory
         ]);
     }
 
+    public function viewer(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'role' => UserRole::Viewer,
+        ]);
+    }
+
     public function inactive(): static
     {
         return $this->state(fn (array $attributes) => [
