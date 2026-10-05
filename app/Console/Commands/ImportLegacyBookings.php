@@ -27,7 +27,7 @@ class ImportLegacyBookings extends Command
 
     public function handle(): int
     {
-        $dir = rtrim($this->option('map-dir') ?: storage_path('app/private/legacy'), '/');
+        $dir = rtrim($this->option('map-dir') ?: config('mrbs.legacy_sync.map_dir'), '/');
         $importer = new LegacyBookingImporter($this->option('connection'));
 
         try {

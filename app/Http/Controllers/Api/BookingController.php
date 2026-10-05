@@ -197,6 +197,8 @@ class BookingController extends Controller
      */
     public function destroy(Booking $booking): JsonResponse
     {
+        Gate::authorize('delete', $booking);
+
         $booking->delete();
 
         return response()->json(['message' => 'Booking berhasil dihapus.']);

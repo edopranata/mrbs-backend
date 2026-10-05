@@ -13,13 +13,22 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Carbon;
 
 #[Fillable([
-    'room_id', 'user_id', 'series_id', 'title', 'description', 'type', 'start_at', 'end_at',
+    'legacy_id', 'legacy_modified_at', 'room_id', 'user_id', 'series_id', 'title', 'description', 'type', 'start_at', 'end_at',
     'participants', 'status', 'cancelled_at', 'cancelled_by', 'cancel_reason',
 ])]
 class Booking extends Model
 {
     /** @use HasFactory<BookingFactory> */
     use HasFactory;
+
+    /**
+     * Booking yang berasal dari MRBS lama hanya-baca selama sinkronisasi masa transisi aktif,
+     * karena perubahannya akan tertimpa sinkronisasi berikutnya.
+     */
+    public function isLegacyLocked(): bool
+    {
+        return $this->legacy_id !== null && config('mrbs.legacy_sync.enabled');
+    }
 
     protected function casts(): array
     {

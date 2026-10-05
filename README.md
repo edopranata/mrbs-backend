@@ -245,6 +245,48 @@ melengkapi pemetaan user): entri yang sudah diimpor dilewati.
 server, salin `users.csv` & `rooms.csv` ke `storage/app/private/legacy/`, jalankan `php artisan migrate`,
 lalu `--dry-run` dan impor seperti di atas.
 
+### Sinkronisasi otomatis selama masa transisi
+
+Selama MRBS lama masih dipakai, booking-nya bisa disalin otomatis tiap beberapa menit
+(satu arah: MRBS lama → aplikasi ini) dengan `php artisan mrbs:sync-legacy`:
+
+- booking **baru** di MRBS lama diimpor;
+- booking yang **diubah** di MRBS lama (kolom `timestamp`) diperbarui;
+- booking **mendatang** yang **dihapus** di MRBS lama dibatalkan ("Dihapus di MRBS lama");
+  riwayat yang sudah lewat tidak disentuh;
+- booking yang berasal dari MRBS lama menjadi **hanya-baca** di aplikasi ini (tidak bisa diubah,
+  dibatalkan, atau dihapus) dan diberi tanda "Dari MRBS lama", karena perubahan di sini akan
+  tertimpa sinkronisasi berikutnya;
+- pengaman: bila database lama kosong atau terlalu banyak booking hilang sekaligus
+  (`LEGACY_SYNC_MAX_CANCELLATIONS`, default 50), pembatalan otomatis dilewati dan dilaporkan.
+
+Langkah di server (hPanel):
+
+1. Pastikan server bisa menghubungi database MRBS lama (izinkan *remote MySQL* dari IP server di
+   tempat MRBS lama berjalan), lalu isi `LEGACY_DB_*` di `.env` server.
+2. Unggah `users.csv` & `rooms.csv` ke `storage/app/private/legacy/` dan jalankan `php artisan migrate`.
+3. Periksa: `php artisan mrbs:sync-legacy --check` lalu `php artisan mrbs:sync-legacy --dry-run`.
+4. Aktifkan di `.env`:
+
+   ```dotenv
+   LEGACY_SYNC_ENABLED=true
+   LEGACY_SYNC_INTERVAL=5   # menit
+   ```
+
+   lalu `php artisan config:cache` (bila konfigurasi di-cache).
+5. hPanel → **Advanced → Cron Jobs**, tambahkan perintah yang dijalankan **setiap menit**:
+
+   ```bash
+   cd /home/<user>/domains/<domain>/public_html && php artisan schedule:run >> /dev/null 2>&1
+   ```
+
+   (sesuaikan path dengan lokasi aplikasi; pakai binary PHP yang sama dengan versi aplikasi bila
+   `php` default berbeda, lihat `scripts/php-cli.sh`).
+
+Hasil tiap sinkronisasi dicatat di `storage/logs/legacy-sync.log`, dan peringatan (pembuat/ruangan
+belum dipetakan, bentrok) juga masuk `storage/logs/laravel.log`. Setelah masa transisi selesai,
+ubah `LEGACY_SYNC_ENABLED=false`: jadwal berhenti dan booking dari MRBS lama bisa dikelola seperti biasa.
+
 ## Ringkasan API
 
 Semua endpoint berawalan `/api` dan (kecuali login) memakai header `Authorization: Bearer <token>`.

@@ -42,6 +42,9 @@ class BookingResource extends JsonResource
             'cancel_reason' => $this->cancel_reason,
             'series_id' => $this->series_id,
             'is_recurring' => $this->series_id !== null,
+            // Berasal dari MRBS lama (hasil impor/sinkronisasi masa transisi).
+            'is_legacy' => $this->legacy_id !== null,
+            'legacy_locked' => $this->isLegacyLocked(),
             'room_id' => $this->room_id,
             'user_id' => $this->user_id,
             'room' => $this->whenLoaded('room', fn () => [
@@ -60,6 +63,7 @@ class BookingResource extends JsonResource
             'can' => [
                 'update' => $user ? $user->can('update', $this->resource) : false,
                 'cancel' => $user ? $user->can('cancel', $this->resource) : false,
+                'delete' => $user ? $user->can('delete', $this->resource) : false,
             ],
             'created_at' => $this->created_at?->format('Y-m-d\TH:i:s'),
         ];

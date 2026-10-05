@@ -122,13 +122,18 @@ class LegacyBookingImporter
     // ------------------------------------------------------------------ Impor
 
     /**
-     * @param  array{dry_run?: bool, fallback_user?: ?string, allow_conflicts?: bool}  $options
+     * Impor booking dari MRBS lama. Dengan `sync`, booking yang sudah pernah diimpor juga
+     * diperbarui bila diubah di MRBS lama (kolom `timestamp`), dan booking mendatang yang dihapus
+     * di MRBS lama dibatalkan di sini. Riwayat (booking yang sudah lewat) tidak pernah dihapus.
+     *
+     * @param  array{dry_run?: bool, fallback_user?: ?string, allow_conflicts?: bool, sync?: bool, max_cancellations?: int}  $options
      * @return array<string, mixed> ringkasan untuk ditampilkan
      */
     public function import(string $dir, array $options = []): array
     {
         $dryRun = (bool) ($options['dry_run'] ?? false);
         $allowConflicts = (bool) ($options['allow_conflicts'] ?? false);
+        $sync = (bool) ($options['sync'] ?? false);
 
         foreach ([self::USER_MAP, self::ROOM_MAP] as $file) {
             if (! is_file("{$dir}/{$file}")) {
@@ -181,9 +186,12 @@ class LegacyBookingImporter
 
         $legacyRooms = $this->legacyRooms()->keyBy('id');
         $timezones = $legacyRooms->map(fn ($r) => $r->timezone ?: config('app.timezone'));
-        $alreadyImported = DB::table('bookings')->whereNotNull('legacy_id')->pluck('legacy_id')->flip();
+        // Booking hasil impor sebelumnya: legacy_id → id, versi (timestamp MRBS lama), status.
+        $imported = DB::table('bookings')->whereNotNull('legacy_id')
+            ->get(['id', 'legacy_id', 'legacy_modified_at', 'status'])
+            ->keyBy('legacy_id');
 
-        // Booking yang sudah ada (dibuat di aplikasi ini) per ruangan, untuk cek bentrok.
+        // Booking yang dibuat di aplikasi ini per ruangan, untuk cek bentrok.
         $existing = DB::table('bookings')
             ->whereNull('legacy_id')
             ->where('status', 'confirmed')
@@ -192,21 +200,45 @@ class LegacyBookingImporter
 
         $report = [
             'total' => 0, 'already' => 0, 'importable' => 0, 'imported' => 0,
+            'changed' => 0, 'updated' => 0, 'deleted_upstream' => 0, 'cancelled' => 0,
             'unmapped_users' => [], 'unmapped_rooms' => [], 'conflicts' => [], 'conflict_count' => 0,
             'tentative' => 0, 'long' => 0, 'recurring' => 0, 'with_wa' => 0, 'fallback' => 0,
             'unknown_user_targets' => $unknownTargets, 'unknown_room_targets' => $unknownRooms,
         ];
         $rows = [];
+        $updates = [];
+        $backfill = [];
+        $seenLegacyIds = [];
 
         $this->legacy()->table('entry')->orderBy('id')->chunk(1000, function ($entries) use (
-            &$report, &$rows, $userMap, $fallbackId, $roomMap, $legacyRooms, $timezones, $alreadyImported, $existing, $allowConflicts
+            &$report, &$rows, &$updates, &$backfill, &$seenLegacyIds, $userMap, $fallbackId, $roomMap, $legacyRooms,
+            $timezones, $imported, $existing, $allowConflicts, $sync
         ) {
             foreach ($entries as $e) {
                 $report['total']++;
-                if (isset($alreadyImported[$e->id])) {
+                $seenLegacyIds[(int) $e->id] = true;
+                $modifiedAt = $e->timestamp ? Carbon::parse($e->timestamp)->format('Y-m-d H:i:s') : null;
+                $previous = $imported[$e->id] ?? null;
+
+                if ($previous && $sync && $previous->legacy_modified_at === null) {
+                    // Diimpor sebelum kolom versi ada: cukup catat versinya, isi booking tidak diubah.
                     $report['already']++;
+                    if ($modifiedAt !== null) {
+                        $backfill[$previous->id] = $modifiedAt;
+                    }
 
                     continue;
+                }
+
+                if ($previous) {
+                    // Sudah pernah diimpor: hanya diproses ulang saat sinkronisasi dan bila berubah di MRBS lama.
+                    // Tidak berubah → tidak disentuh (termasuk bila dibatalkan di aplikasi ini).
+                    $unchanged = $modifiedAt === null || (string) $previous->legacy_modified_at === $modifiedAt;
+                    if (! $sync || $unchanged) {
+                        $report['already']++;
+
+                        continue;
+                    }
                 }
 
                 $roomId = $roomMap[(int) $e->room_id] ?? null;
@@ -264,11 +296,8 @@ class LegacyBookingImporter
                     $report['with_wa']++;
                 }
                 $description = trim(implode("\n\n", array_filter([trim((string) $e->description), $wa !== '' ? "PIC (WA): {$wa}" : null])));
-                $createdAt = $e->timestamp ? Carbon::parse($e->timestamp) : now();
 
-                $report['importable']++;
-                $rows[] = [
-                    'legacy_id' => $e->id,
+                $fields = [
                     'room_id' => $roomId,
                     'user_id' => $userId,
                     // Seri berulang lama → series_id tetap (deterministik) agar impor ulang konsisten.
@@ -278,20 +307,81 @@ class LegacyBookingImporter
                     'type' => strtoupper((string) $e->type) === 'E' ? 'external' : 'internal',
                     'start_at' => $start->format('Y-m-d H:i:s'),
                     'end_at' => $end->format('Y-m-d H:i:s'),
-                    'participants' => 1,
                     // Tentative di MRBS lama diimpor sebagai booking biasa (sesuai keputusan migrasi).
                     'status' => 'confirmed',
-                    'created_at' => $createdAt->format('Y-m-d H:i:s'),
-                    'updated_at' => $createdAt->format('Y-m-d H:i:s'),
+                    'cancelled_at' => null,
+                    'cancelled_by' => null,
+                    'cancel_reason' => null,
+                    'legacy_modified_at' => $modifiedAt,
+                ];
+
+                if ($previous) {
+                    $report['changed']++;
+                    $updates[$previous->id] = $fields + ['updated_at' => now()->format('Y-m-d H:i:s')];
+
+                    continue;
+                }
+
+                $createdAt = $modifiedAt ?? now()->format('Y-m-d H:i:s');
+                $report['importable']++;
+                $rows[] = ['legacy_id' => $e->id] + $fields + [
+                    'participants' => 1,
+                    'created_at' => $createdAt,
+                    'updated_at' => $createdAt,
                 ];
             }
         });
 
-        if (! $dryRun && $rows) {
-            DB::transaction(function () use ($rows, &$report) {
+        // Dihapus di MRBS lama: booking yang belum selesai dibatalkan; riwayat dibiarkan.
+        $deletedIds = [];
+        $report['cancel_blocked'] = null;
+        if ($sync && $report['total'] === 0) {
+            // Pengaman: database lama kosong (mis. salah nama database) jangan sampai membatalkan semuanya.
+            $report['cancel_blocked'] = 'Database MRBS lama tidak berisi booking; pembatalan otomatis dilewati.';
+        } elseif ($sync) {
+            $deletedIds = DB::table('bookings')
+                ->whereNotNull('legacy_id')
+                ->where('status', 'confirmed')
+                ->where('end_at', '>=', now()->format('Y-m-d H:i:s'))
+                ->get(['id', 'legacy_id'])
+                ->reject(fn ($b) => isset($seenLegacyIds[(int) $b->legacy_id]))
+                ->pluck('id')
+                ->all();
+            $report['deleted_upstream'] = count($deletedIds);
+            $limit = (int) ($options['max_cancellations'] ?? 50);
+            if (count($deletedIds) > $limit) {
+                // Pengaman: terlalu banyak yang hilang sekaligus biasanya tanda masalah, bukan penghapusan sungguhan.
+                $report['cancel_blocked'] = count($deletedIds)." booking hilang dari MRBS lama sekaligus (batas {$limit}); "
+                    .'pembatalan otomatis dilewati. Periksa database lama, lalu jalankan dengan --max-cancellations bila memang benar.';
+                $deletedIds = [];
+            }
+        }
+
+        if (! $dryRun && $backfill) {
+            DB::transaction(function () use ($backfill) {
+                foreach ($backfill as $id => $modifiedAt) {
+                    DB::table('bookings')->where('id', $id)->update(['legacy_modified_at' => $modifiedAt]);
+                }
+            });
+        }
+
+        if (! $dryRun && ($rows || $updates || $deletedIds)) {
+            DB::transaction(function () use ($rows, $updates, $deletedIds, &$report) {
                 foreach (array_chunk($rows, 500) as $chunk) {
                     DB::table('bookings')->insert($chunk);
                     $report['imported'] += count($chunk);
+                }
+                foreach ($updates as $id => $fields) {
+                    DB::table('bookings')->where('id', $id)->update($fields);
+                    $report['updated']++;
+                }
+                foreach (array_chunk($deletedIds, 500) as $chunk) {
+                    $report['cancelled'] += DB::table('bookings')->whereIn('id', $chunk)->update([
+                        'status' => 'cancelled',
+                        'cancelled_at' => now()->format('Y-m-d H:i:s'),
+                        'cancel_reason' => 'Dihapus di MRBS lama',
+                        'updated_at' => now()->format('Y-m-d H:i:s'),
+                    ]);
                 }
             });
         }

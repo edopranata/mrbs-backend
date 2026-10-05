@@ -54,4 +54,24 @@ return [
     // Seberapa jauh ke depan user biasa boleh memesan (hari). Admin tidak dibatasi.
     'max_advance_days' => (int) env('MRBS_MAX_ADVANCE_DAYS', 60),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Sinkronisasi dari MRBS lama (masa transisi)
+    |--------------------------------------------------------------------------
+    |
+    | Bila aktif, `php artisan mrbs:sync-legacy` dijadwalkan lewat scheduler (cron
+    | `schedule:run`) untuk menyalin booking baru/berubah/terhapus dari MRBS lama, dan
+    | booking yang berasal dari MRBS lama menjadi hanya-baca di aplikasi ini.
+    | Koneksi database lama: LEGACY_DB_* (lihat config/database.php).
+    |
+    */
+
+    'legacy_sync' => [
+        'enabled' => (bool) env('LEGACY_SYNC_ENABLED', false),
+        'interval' => max(1, (int) env('LEGACY_SYNC_INTERVAL', 5)), // menit
+        'map_dir' => env('LEGACY_MAP_DIR', storage_path('app/private/legacy')),
+        // Pengaman: lebih dari ini booking hilang sekaligus dianggap masalah, bukan penghapusan.
+        'max_cancellations' => (int) env('LEGACY_SYNC_MAX_CANCELLATIONS', 50),
+    ],
+
 ];
