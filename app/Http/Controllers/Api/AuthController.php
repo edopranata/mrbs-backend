@@ -10,6 +10,7 @@ use App\Support\Audit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
@@ -18,9 +19,33 @@ class AuthController extends Controller
 {
     public function login(LoginRequest $request): JsonResponse
     {
-        $user = User::where('username', $request->validated('username'))->first();
+        $username = Str::lower((string) $request->validated('username'));
+        $user = User::where('username', $username)->first();
+        $throttleKey = 'login:'.$username;
+        $maxAttempts = (int) config('mrbs.security.login_max_attempts');
+
+        // Batas per username (dari IP mana pun), melengkapi batas per IP di routes/api.php.
+        if ($maxAttempts > 0 && RateLimiter::tooManyAttempts($throttleKey, $maxAttempts)) {
+            $minutes = (int) ceil(RateLimiter::availableIn($throttleKey) / 60);
+            Audit::log(
+                'auth.login_failed',
+                'Login diblokir sementara: terlalu banyak percobaan gagal',
+                $user,
+                meta: ['Username dicoba' => Str::limit($username, 50), 'Terbuka lagi dalam' => "{$minutes} menit"],
+                actor: $user,
+                actorName: $user ? null : Str::limit($username, 50),
+            );
+
+            throw ValidationException::withMessages([
+                'username' => "Terlalu banyak percobaan login yang gagal. Coba lagi dalam {$minutes} menit.",
+            ]);
+        }
 
         if (! $user || ! Hash::check($request->validated('password'), $user->password)) {
+            if ($maxAttempts > 0) {
+                RateLimiter::hit($throttleKey, (int) config('mrbs.security.login_lock_minutes') * 60);
+            }
+
             Audit::log(
                 'auth.login_failed',
                 $user ? 'Login gagal: password salah' : 'Login gagal: username tidak terdaftar',
@@ -43,6 +68,7 @@ class AuthController extends Controller
             ]);
         }
 
+        RateLimiter::clear($throttleKey);
         $token = $user->createToken($request->validated('device_name') ?? 'spa')->plainTextToken;
         Audit::log('auth.login', 'Login berhasil', $user, meta: ['Perangkat' => $request->validated('device_name')], actor: $user);
 

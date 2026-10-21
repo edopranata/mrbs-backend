@@ -78,4 +78,21 @@ return [
     // Jam pembersihan harian (H:i, zona waktu aplikasi).
     'cleanup_time' => env('MRBS_CLEANUP_TIME', '01:00'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Keamanan Login
+    |--------------------------------------------------------------------------
+    */
+
+    'security' => [
+        // Token login (web & Android) kedaluwarsa bila tidak dipakai selama N hari; pengguna yang
+        // rutin memakai aplikasi tidak perlu login ulang. 0 = tidak pernah kedaluwarsa.
+        'token_idle_days' => (int) env('MRBS_TOKEN_IDLE_DAYS', 30),
+
+        // Setelah N kali password salah untuk satu username, username itu dikunci sementara
+        // (berlaku dari IP mana pun). 0 = tanpa batas per username (batas per IP tetap berlaku).
+        'login_max_attempts' => (int) env('MRBS_LOGIN_MAX_ATTEMPTS', 5),
+        'login_lock_minutes' => max(1, (int) env('MRBS_LOGIN_LOCK_MINUTES', 15)),
+    ],
+
 ];

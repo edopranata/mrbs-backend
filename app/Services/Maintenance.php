@@ -7,11 +7,12 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
+use Laravel\Sanctum\PersonalAccessToken;
 use Throwable;
 
 /**
  * Pembersihan berkala agar aplikasi tetap ringan: audit log & isi file log yang lewat masa simpan,
- * cache kedaluwarsa, sesi lama, dan pengosongan seluruh cache setiap beberapa hari.
+ * cache kedaluwarsa, sesi & token login lama, dan pengosongan seluruh cache setiap beberapa hari.
  * Batasnya diatur System Admin di menu Pengaturan (config('mrbs.*_days')).
  */
 class Maintenance
@@ -20,7 +21,7 @@ class Maintenance
     private const SKIP_LOGS = ['cron-schedule.log'];
 
     /**
-     * @return array{audit_logs: int, log_files_deleted: int, log_files_trimmed: int, cache_expired: int, sessions: int, cache_cleared: bool}
+     * @return array{audit_logs: int, log_files_deleted: int, log_files_trimmed: int, cache_expired: int, sessions: int, tokens: int, cache_cleared: bool}
      */
     public function run(bool $forceCacheClear = false): array
     {
@@ -31,6 +32,7 @@ class Maintenance
             'log_files_trimmed' => 0,
             'cache_expired' => 0,
             'sessions' => 0,
+            'tokens' => 0,
             'cache_cleared' => false,
         ];
 
@@ -44,6 +46,15 @@ class Maintenance
 
         $report['cache_expired'] = $this->purgeExpiredCache();
         $report['sessions'] = $this->purgeExpiredSessions();
+
+        // Token yang sudah tidak berlaku (lihat AppServiceProvider) tidak perlu disimpan.
+        if (($days = (int) config('mrbs.security.token_idle_days')) > 0) {
+            $cutoff = $now->copy()->subDays($days);
+            $report['tokens'] = PersonalAccessToken::query()
+                ->where(fn ($q) => $q->where('last_used_at', '<', $cutoff)
+                    ->orWhere(fn ($q) => $q->whereNull('last_used_at')->where('created_at', '<', $cutoff)))
+                ->delete();
+        }
 
         $state = $this->state();
         $every = (int) config('mrbs.cache_clear_days');
@@ -92,6 +103,7 @@ class Maintenance
             $report['log_files_trimmed'] ? "isi lama {$report['log_files_trimmed']} file log" : null,
             $report['cache_expired'] ? "{$report['cache_expired']} cache kedaluwarsa" : null,
             $report['sessions'] ? "{$report['sessions']} sesi lama" : null,
+            ($report['tokens'] ?? 0) ? "{$report['tokens']} token login kedaluwarsa" : null,
         ]);
         $text = $parts ? 'Dihapus: '.implode(', ', $parts) : 'Tidak ada data lama yang perlu dihapus';
 

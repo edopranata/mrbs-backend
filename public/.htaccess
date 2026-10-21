@@ -42,6 +42,15 @@
 </IfModule>
 
 <IfModule mod_headers.c>
+    # Header keamanan untuk file statis (frontend di public/app). Respons dari Laravel mendapat
+    # header yang sama (plus HSTS) dari App\Http\Middleware\SecurityHeaders.
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-Frame-Options "DENY"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+    Header always set Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+    Header always unset X-Powered-By
+    Header unset X-Powered-By
+
     # index.html & service worker selalu dicek ulang agar versi terbaru langsung terpakai.
     <FilesMatch "^(index\.html|sw\.js)$">
         Header set Cache-Control "no-cache, no-store, must-revalidate"

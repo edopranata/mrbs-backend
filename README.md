@@ -51,6 +51,18 @@ menit), durasi minimal/maksimal, batas hari pemesanan, dan batas minggu booking 
 dari aplikasi. Nilai dari menu ini disimpan di tabel `settings` dan **menimpa** nilai `MRBS_*` di
 `.env`; tombol *Kembalikan semua ke default* menghapus nilai tersimpan sehingga `.env` berlaku lagi.
 
+### Keamanan
+
+| Perlindungan | Keterangan | Pengaturan `.env` |
+|---|---|---|
+| Masa aktif token login | Token (web & Android) kedaluwarsa setelah N hari **tidak dipakai**; yang rutin memakai aplikasi tidak perlu login ulang. Token lama juga dibuang oleh pembersihan harian. | `MRBS_TOKEN_IDLE_DAYS=30` (0 = tidak pernah) |
+| Kunci login per username | Setelah N kali password salah, username dikunci sementara dari IP mana pun (tercatat di Audit Log). Tetap ada batas 10 percobaan/menit per IP. | `MRBS_LOGIN_MAX_ATTEMPTS=5`, `MRBS_LOGIN_LOCK_MINUTES=15` |
+| CORS | Hanya domain sendiri yang boleh memanggil API dari browser. Web (satu domain dengan API) dan aplikasi Android (bukan browser) tidak terpengaruh. | `CORS_ALLOWED_ORIGINS` (default `APP_URL`) |
+| Header keamanan | `X-Frame-Options: DENY`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, HSTS (production), tanpa `X-Powered-By` — dari middleware `SecurityHeaders` dan `public/.htaccess` untuk file statis. | — |
+
+Di server pastikan `APP_ENV=production`, `APP_DEBUG=false`, dan `APP_URL=https://booking.ropekanbaru.com`
+(atau isi `CORS_ALLOWED_ORIGINS`), lalu `php artisan config:cache` bila konfigurasi di-cache.
+
 ### Pemeliharaan otomatis
 
 Setiap hari pukul `MRBS_CLEANUP_TIME` (default 01:00) scheduler menjalankan `php artisan mrbs:cleanup`:
@@ -284,7 +296,7 @@ app/Services/Maintenance.php        # pembersihan harian (mrbs:cleanup): audit l
 app/Support/Audit.php               # pencatat audit log
 app/Policies/BookingPolicy.php      # siapa boleh ubah/batalkan
 app/Http/Controllers/Api/           # controller REST
-app/Http/Middleware/                # EnsureUserIsAdmin, EnsureUserIsSystemAdmin, EnsureUserIsActive
+app/Http/Middleware/                # EnsureUserIsAdmin, EnsureUserIsSystemAdmin, EnsureUserIsActive, SecurityHeaders
 config/mrbs.php                     # default jam operasional & aturan booking (dari .env)
 database/seeders/                   # ruangan, akun default, demo booking
 tests/Feature/                      # test auth, booking, booking berulang, akses admin, pengaturan
