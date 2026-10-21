@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\UserRequest;
 use App\Http\Resources\UserResource;
 use App\Models\User;
+use App\Support\Audit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -36,6 +37,7 @@ class UserController extends Controller
         $this->guardSystemAdminAccess($request, null, $request->validated('role'));
 
         $user = User::create($request->validated());
+        Audit::log('user.created', 'Menambah user '.Audit::userLabel($user).' sebagai '.$user->role->label(), $user, Audit::diff([], $this->snapshot($user)));
 
         return (new UserResource($user))->response()->setStatusCode(201);
     }
@@ -65,7 +67,16 @@ class UserController extends Controller
             unset($data['password']);
         }
 
+        $before = $this->snapshot($user);
         $user->update($data);
+
+        $changes = Audit::diff($before, $this->snapshot($user));
+        if (isset($data['password'])) {
+            $changes['password'] = [null, '(diganti)'];
+        }
+        if ($changes) {
+            Audit::log('user.updated', 'Mengubah user '.Audit::userLabel($user), $user, $changes);
+        }
 
         if (! $user->is_active) {
             $user->tokens()->delete();
@@ -83,6 +94,7 @@ class UserController extends Controller
 
         $user->tokens()->delete();
         $user->delete();
+        Audit::log('user.deleted', 'Menghapus user '.Audit::userLabel($user), $user, Audit::diff($this->snapshot($user), []));
 
         return response()->json(['message' => 'User berhasil dihapus.']);
     }
@@ -101,5 +113,11 @@ class UserController extends Controller
             403,
             'Hanya System Admin yang dapat mengelola akun System Admin.',
         );
+    }
+
+    /** Data user yang dicatat di audit log (tanpa password). */
+    private function snapshot(User $user): array
+    {
+        return $user->only(['name', 'username', 'email', 'role', 'department', 'phone', 'is_active']);
     }
 }

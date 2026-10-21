@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\AuditLog;
 use App\Models\Booking;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -44,6 +45,15 @@ class SyncLegacyBookingsTest extends TestCase
 
         $this->assertSame(6, Booking::count()); // 107 (pembuat belum dipetakan) dilewati
         $this->assertNotNull(Booking::where('legacy_id', 101)->value('legacy_modified_at'));
+
+        $audit = AuditLog::where('action', 'system.legacy_sync')->sole();
+        $this->assertNull($audit->user_id);
+        $this->assertSame('Sistem', $audit->user_name);
+        $this->assertStringContainsString('6 baru', $audit->description);
+
+        // Tanpa perubahan: tidak menambah catatan.
+        $this->sync();
+        $this->assertSame(1, AuditLog::where('action', 'system.legacy_sync')->count());
     }
 
     public function test_updates_bookings_changed_in_legacy(): void

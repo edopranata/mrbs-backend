@@ -6,21 +6,22 @@
  *   ketersediaan ruangan tidak pernah usang.
  * - Versi baru menunggu sampai pengguna menekan "Muat ulang" (pesan SKIP_WAITING).
  */
-const VERSION = 'b5109f497204'
+const VERSION = 'f37f5535f2c0'
 const CACHE = `mrbs-${VERSION}`
 const PRECACHE = [
-  "/app/assets/index-FtgFa2oG.js",
-  "/app/assets/BookingsView-BsYT40wO.js",
-  "/app/assets/DashboardView-CKM15kOn.js",
+  "/app/assets/index-C1HePcyw.js",
+  "/app/assets/AuditLogView-Bx-lgsdT.js",
+  "/app/assets/BookingsView-BqPl3baz.js",
+  "/app/assets/DashboardView-BBuhP5Cf.js",
   "/app/assets/EmptyState-Dwtg4kcs.js",
-  "/app/assets/LoginView-DCNQWtdK.js",
-  "/app/assets/MyBookingsView-6GaQ3l1v.js",
+  "/app/assets/LoginView-CW4KpmvK.js",
+  "/app/assets/MyBookingsView-B2RYA8LU.js",
   "/app/assets/PaginationBar-CyJVCnox.js",
-  "/app/assets/ProfileView-pzCR1UKo.js",
-  "/app/assets/RoomsView-CcbhHoj_.js",
-  "/app/assets/ScheduleView-DYgJudLo.js",
-  "/app/assets/SettingsView-BkhgMgsO.js",
-  "/app/assets/UsersView-C2J-DA9c.js",
+  "/app/assets/ProfileView-BJiEktQc.js",
+  "/app/assets/RoomsView-D-9HFxMV.js",
+  "/app/assets/ScheduleView-C2eVmSCy.js",
+  "/app/assets/SettingsView-DyGnURK8.js",
+  "/app/assets/UsersView-DdhGltY-.js",
   "/app/assets/api-BZzNF0bQ.js",
   "/app/assets/chevron-right-pl18Uv4J.js",
   "/app/assets/door-open-CEiA51vS.js",
@@ -28,7 +29,7 @@ const PRECACHE = [
   "/app/assets/motion-CkivEe-k.js",
   "/app/assets/plus-zd4LJV_n.js",
   "/app/assets/search-CQPNrCRa.js",
-  "/app/assets/index-BkTx1pSX.css",
+  "/app/assets/index-DdLM0fPh.css",
   "/app/index.html",
   "/app/favicon.svg",
   "/app/icons/apple-touch-icon.png",

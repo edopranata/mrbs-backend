@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\AuditLog;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -16,3 +17,6 @@ if (config('mrbs.legacy_sync.enabled')) {
         ->withoutOverlapping(30)
         ->appendOutputTo(storage_path('logs/legacy-sync.log'));
 }
+
+// Hapus audit log yang melewati masa simpan (MRBS_AUDIT_RETENTION_DAYS).
+Schedule::command('model:prune', ['--model' => [AuditLog::class]])->daily();

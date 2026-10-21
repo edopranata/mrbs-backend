@@ -30,10 +30,20 @@ lantai 1–4). Data ruangan sebenarnya disimpan di `database/seeders/RoomSeeder.
 | Kelola user (tambah, ubah level, nonaktifkan, hapus) | – | – | ✅ (kecuali akun System Admin) | ✅ (termasuk System Admin) |
 | Menu **Semua Booking**: pantauan booking hari ini (sedang berlangsung & akan datang) | ✅ | – | ✅ | ✅ |
 | Statistik pemakaian ruangan bulanan | – | – | ✅ | ✅ |
+| Menu **Audit Log**: riwayat aktivitas (login, booking, ruangan, user, pengaturan) | – | – | ✅ | ✅ |
 | Menu **Pengaturan** aplikasi | – | – | – | ✅ |
 
 Level **View Only** cocok untuk resepsionis/sekretariat yang hanya perlu memantau: menunya hanya
 Dashboard, Jadwal Ruangan, dan Semua Booking (plus Profil untuk ganti password).
+
+### Audit Log
+
+Setiap aktivitas penting dicatat: login (berhasil & gagal), logout, ubah profil/password, buat/ubah/
+pindah/batal/hapus booking, kelola ruangan & user, ubah pengaturan, dan ringkasan sinkronisasi MRBS
+lama. Tiap catatan memuat pelaku, waktu, alamat IP, perangkat, serta kolom yang berubah (sebelum →
+sesudah); password tidak pernah dicatat. Admin & System Admin melihatnya di menu **Audit Log**.
+Catatan lebih lama dari `MRBS_AUDIT_RETENTION_DAYS` (default 365 hari, `0` = selamanya) dihapus
+otomatis setiap hari oleh scheduler (cron `schedule:run` yang sama dengan sinkronisasi).
 
 ### Menu Pengaturan (System Admin)
 

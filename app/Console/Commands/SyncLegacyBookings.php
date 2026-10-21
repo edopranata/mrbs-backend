@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Services\LegacyBookingImporter;
+use App\Support\Audit;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -72,6 +73,9 @@ class SyncLegacyBookings extends Command
             $changed = $report['imported'] + $report['updated'] + $report['cancelled'];
             if ($changed > 0 || $warnings) {
                 Log::log($warnings ? 'warning' : 'info', $summary, ['peringatan' => array_values($warnings)]);
+            }
+            if ($changed > 0) {
+                Audit::system('system.legacy_sync', $summary, ['Peringatan' => implode(' | ', $warnings)]);
             }
         }
 

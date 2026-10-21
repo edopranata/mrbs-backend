@@ -7,6 +7,7 @@ use App\Http\Requests\RoomRequest;
 use App\Http\Resources\RoomResource;
 use App\Models\Booking;
 use App\Models\Room;
+use App\Support\Audit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -35,13 +36,19 @@ class RoomController extends Controller
     public function store(RoomRequest $request): JsonResponse
     {
         $room = Room::create($request->validated());
+        Audit::log('room.created', "Menambah ruangan {$room->name}", $room, Audit::diff([], $this->snapshot($room)));
 
         return (new RoomResource($room))->response()->setStatusCode(201);
     }
 
     public function update(RoomRequest $request, Room $room): RoomResource
     {
+        $before = $this->snapshot($room);
         $room->update($request->validated());
+
+        if ($changes = Audit::diff($before, $this->snapshot($room))) {
+            Audit::log('room.updated', "Mengubah ruangan {$room->name}", $room, $changes);
+        }
 
         return new RoomResource($room);
     }
@@ -55,6 +62,7 @@ class RoomController extends Controller
         }
 
         $room->delete();
+        Audit::log('room.deleted', "Menghapus ruangan {$room->name}", $room, Audit::diff($this->snapshot($room), []));
 
         return response()->json(['message' => 'Ruangan berhasil dihapus.']);
     }
@@ -109,5 +117,11 @@ class RoomController extends Controller
         });
 
         return response()->json(['data' => $rooms]);
+    }
+
+    /** @return array<string, mixed> */
+    private function snapshot(Room $room): array
+    {
+        return $room->only(['code', 'name', 'floor', 'capacity', 'facilities', 'description', 'color', 'is_active']);
     }
 }

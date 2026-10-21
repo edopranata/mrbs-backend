@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AuditLogController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\BookingController;
 use App\Http\Controllers\Api\DashboardController;
@@ -48,6 +49,8 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::delete('/bookings/{booking}', [BookingController::class, 'destroy']);
 
         Route::apiResource('users', UserController::class);
+
+        Route::get('/audit-logs', [AuditLogController::class, 'index']);
     });
 
     // Khusus System Admin

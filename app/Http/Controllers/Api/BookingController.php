@@ -9,6 +9,7 @@ use App\Http\Resources\BookingResource;
 use App\Models\Booking;
 use App\Models\Room;
 use App\Services\BookingService;
+use App\Support\Audit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -67,6 +68,7 @@ class BookingController extends Controller
 
         if ($weeks <= 1) {
             $booking = $this->bookings->create($request->user(), $data);
+            Audit::log('booking.created', 'Membuat booking '.Audit::bookingLabel($booking), $booking);
 
             return (new BookingResource($booking->load(['room', 'user'])))
                 ->response()
@@ -75,6 +77,17 @@ class BookingController extends Controller
 
         $result = $this->bookings->createWeekly($request->user(), $data, $weeks, $request->boolean('skip_conflicts'));
         $bookings = collect($result['bookings'])->each->load(['room', 'user']);
+        if ($first = $bookings->first()) {
+            Audit::log(
+                'booking.created',
+                sprintf('Membuat booking mingguan %s, %d dari %d minggu', Audit::bookingLabel($first), $bookings->count(), $weeks),
+                $first,
+                meta: [
+                    'Seri' => $first->series_id,
+                    'Tanggal dilewati' => collect($result['skipped'])->map(fn ($s) => "{$s['date']}: {$s['reason']}")->implode('; '),
+                ],
+            );
+        }
 
         return BookingResource::collection($bookings)
             ->additional(['skipped' => $result['skipped']])
@@ -164,7 +177,19 @@ class BookingController extends Controller
     {
         Gate::authorize('update', $booking);
 
+        $before = Audit::bookingSnapshot($booking);
         $booking = $this->bookings->update($request->user(), $booking, $request->validated());
+
+        if ($changes = Audit::diff($before, Audit::bookingSnapshot($booking->unsetRelation('room')))) {
+            $moved = ! array_diff(array_keys($changes), ['room', 'start_at', 'end_at']);
+            Audit::log(
+                'booking.updated',
+                ($moved ? 'Memindahkan booking ' : 'Mengubah booking ').Audit::bookingLabel($booking),
+                $booking,
+                $changes,
+                $this->ownerMeta($request, $booking),
+            );
+        }
 
         return new BookingResource($booking->load(['room', 'user']));
     }
@@ -184,10 +209,13 @@ class BookingController extends Controller
 
         if (($data['scope'] ?? 'single') === 'following' && $booking->series_id) {
             $count = $this->bookings->cancelFollowing($request->user(), $booking, $reason);
+            $description = "Membatalkan {$count} booking dalam seri ".Audit::bookingLabel($booking).' dan minggu-minggu berikutnya';
         } else {
             $this->bookings->cancel($request->user(), $booking, $reason);
             $count = 1;
+            $description = 'Membatalkan booking '.Audit::bookingLabel($booking);
         }
+        Audit::log('booking.cancelled', $description, $booking, meta: ['Alasan' => $reason, ...$this->ownerMeta($request, $booking)]);
 
         return (new BookingResource($booking->refresh()->load(['room', 'user', 'canceller'])))
             ->additional(['cancelled_count' => $count])
@@ -201,8 +229,21 @@ class BookingController extends Controller
     {
         Gate::authorize('delete', $booking);
 
+        $description = 'Menghapus permanen booking '.Audit::bookingLabel($booking);
+        $meta = $this->ownerMeta(request(), $booking);
         $booking->delete();
+        Audit::log('booking.deleted', $description, $booking, meta: $meta);
 
         return response()->json(['message' => 'Booking berhasil dihapus.']);
+    }
+
+    /** Pemilik booking dicatat bila yang mengubah adalah orang lain (mis. admin). */
+    private function ownerMeta(Request $request, Booking $booking): array
+    {
+        $booking->loadMissing('user');
+
+        return $booking->user && ! $booking->user->is($request->user())
+            ? ['Pemilik booking' => Audit::userLabel($booking->user)]
+            : [];
     }
 }

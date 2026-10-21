@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\AppSettings;
+use App\Support\Audit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -61,14 +62,21 @@ class SettingController extends Controller
         ]);
 
         $this->ensureConsistent([...$this->settings->all(), ...$data]);
+        $before = $this->settings->all();
         $this->settings->update($data);
+
+        if ($changes = Audit::diff($before, $this->settings->all())) {
+            Audit::log('settings.updated', 'Mengubah pengaturan aplikasi', changes: $changes);
+        }
 
         return $this->manage();
     }
 
     public function reset(): JsonResponse
     {
+        $before = $this->settings->all();
         $this->settings->reset();
+        Audit::log('settings.reset', 'Mengembalikan semua pengaturan ke nilai default', changes: Audit::diff($before, $this->settings->all()));
 
         return $this->manage();
     }

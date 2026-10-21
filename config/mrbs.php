@@ -56,6 +56,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Audit Log
+    |--------------------------------------------------------------------------
+    |
+    | Catatan aktivitas (login, booking, ruangan, user, pengaturan) yang bisa dilihat Admin &
+    | System Admin. Catatan lebih lama dari masa simpan ini dihapus otomatis tiap hari oleh
+    | scheduler (`model:prune`). 0 = simpan selamanya.
+    |
+    */
+
+    'audit_retention_days' => (int) env('MRBS_AUDIT_RETENTION_DAYS', 365),
+
+    /*
+    |--------------------------------------------------------------------------
     | Sinkronisasi dari MRBS lama (masa transisi)
     |--------------------------------------------------------------------------
     |
