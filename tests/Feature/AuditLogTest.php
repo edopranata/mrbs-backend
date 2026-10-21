@@ -153,18 +153,4 @@ class AuditLogTest extends TestCase
         $this->assertNull($entry['user']);
         $this->assertSame('Dodi S (dodi)', $entry['user_name']);
     }
-
-    public function test_old_entries_are_pruned_after_retention(): void
-    {
-        AuditLog::create(['action' => 'auth.login', 'description' => 'Lama', 'created_at' => now()->subDays(400)]);
-        AuditLog::create(['action' => 'auth.login', 'description' => 'Baru', 'created_at' => now()->subDays(10)]);
-
-        $this->artisan('model:prune', ['--model' => [AuditLog::class]])->assertSuccessful();
-        $this->assertSame(['Baru'], AuditLog::pluck('description')->all());
-
-        config(['mrbs.audit_retention_days' => 0]);
-        AuditLog::create(['action' => 'auth.login', 'description' => 'Kuno', 'created_at' => now()->subYears(5)]);
-        $this->artisan('model:prune', ['--model' => [AuditLog::class]])->assertSuccessful();
-        $this->assertSame(2, AuditLog::count());
-    }
 }

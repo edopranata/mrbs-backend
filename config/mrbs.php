@@ -56,35 +56,26 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Audit Log
+    | Pemeliharaan Otomatis
     |--------------------------------------------------------------------------
     |
-    | Catatan aktivitas (login, booking, ruangan, user, pengaturan) yang bisa dilihat Admin &
-    | System Admin. Catatan lebih lama dari masa simpan ini dihapus otomatis tiap hari oleh
-    | scheduler (`model:prune`). 0 = simpan selamanya.
+    | `php artisan mrbs:cleanup` dijalankan scheduler setiap hari pada `cleanup_time` (cron
+    | `schedule:run` tiap menit, lihat scripts/cron-schedule.sh). Tiga nilai pertama bisa diubah
+    | System Admin dari menu Pengaturan. 0 = tidak dihapus / tidak dikosongkan otomatis.
     |
     */
 
+    // Audit log lebih lama dari ini dihapus (hari).
     'audit_retention_days' => (int) env('MRBS_AUDIT_RETENTION_DAYS', 365),
 
-    /*
-    |--------------------------------------------------------------------------
-    | Sinkronisasi dari MRBS lama (masa transisi)
-    |--------------------------------------------------------------------------
-    |
-    | Bila aktif, `php artisan mrbs:sync-legacy` dijadwalkan lewat scheduler (cron
-    | `schedule:run`) untuk menyalin booking baru/berubah/terhapus dari MRBS lama, dan
-    | booking yang berasal dari MRBS lama menjadi hanya-baca di aplikasi ini.
-    | Koneksi database lama: LEGACY_DB_* (lihat config/database.php).
-    |
-    */
+    // Isi file log Laravel (storage/logs) lebih lama dari ini dihapus (hari).
+    'log_retention_days' => (int) env('MRBS_LOG_RETENTION_DAYS', 14),
 
-    'legacy_sync' => [
-        'enabled' => (bool) env('LEGACY_SYNC_ENABLED', false),
-        'interval' => max(1, (int) env('LEGACY_SYNC_INTERVAL', 5)), // menit
-        'map_dir' => env('LEGACY_MAP_DIR', storage_path('app/private/legacy')),
-        // Pengaman: lebih dari ini booking hilang sekaligus dianggap masalah, bukan penghapusan.
-        'max_cancellations' => (int) env('LEGACY_SYNC_MAX_CANCELLATIONS', 50),
-    ],
+    // Seluruh cache aplikasi dikosongkan setiap N hari. Cache yang sudah kedaluwarsa dan sesi
+    // lama selalu dibuang setiap kali pembersihan berjalan.
+    'cache_clear_days' => (int) env('MRBS_CACHE_CLEAR_DAYS', 7),
+
+    // Jam pembersihan harian (H:i, zona waktu aplikasi).
+    'cleanup_time' => env('MRBS_CLEANUP_TIME', '01:00'),
 
 ];

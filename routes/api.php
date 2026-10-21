@@ -58,5 +58,6 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::get('/settings/manage', [SettingController::class, 'manage']);
         Route::put('/settings', [SettingController::class, 'update']);
         Route::delete('/settings', [SettingController::class, 'reset']);
+        Route::post('/settings/maintenance', [SettingController::class, 'runMaintenance']);
     });
 });

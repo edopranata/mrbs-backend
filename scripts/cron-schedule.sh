@@ -8,9 +8,12 @@
 # Yang dilakukan:
 #   - pindah ke folder aplikasi (folder induk skrip ini), jadi path apa pun aman;
 #   - memakai PHP yang sesuai kebutuhan aplikasi (≥ 8.4), bukan /usr/bin/php bawaan yang bisa lebih lama;
+#   - menjalankan Laravel scheduler (`schedule:run`), yang setiap hari pada jam pembersihan
+#     (default 01:00) menjalankan `mrbs:cleanup`: menghapus audit log & isi file log yang lewat masa
+#     simpan, cache kedaluwarsa, sesi lama, dan mengosongkan seluruh cache setiap N hari. Batasnya
+#     diatur System Admin di menu Pengaturan → Pemeliharaan Otomatis;
 #   - menyimpan keluaran putaran terakhir di storage/logs/cron-schedule.log (ditimpa setiap menit,
-#     jadi tidak membesar). Log tugas terjadwal sendiri, mis. sinkronisasi MRBS lama, ada di
-#     storage/logs/legacy-sync.log.
+#     jadi tidak membesar).
 #
 # PHP bisa dipaksa lewat variabel PHP_BIN, mis.:  PHP_BIN=/opt/alt/php85/usr/bin/php /bin/bash cron-schedule.sh
 

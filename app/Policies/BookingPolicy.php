@@ -10,8 +10,6 @@ class BookingPolicy
 {
     public const VIEW_ONLY = 'Akun View Only hanya dapat melihat jadwal dan booking.';
 
-    public const LEGACY_LOCKED = 'Booking ini berasal dari MRBS lama. Selama masa transisi, ubah atau batalkan di MRBS lama.';
-
     /** Membuat booking: semua level kecuali View Only. */
     public function create(User $user): Response
     {
@@ -26,10 +24,6 @@ class BookingPolicy
     {
         if ($user->isViewer()) {
             return Response::deny(self::VIEW_ONLY);
-        }
-
-        if ($booking->isLegacyLocked()) {
-            return Response::deny(self::LEGACY_LOCKED);
         }
 
         if ($booking->isCancelled()) {
@@ -50,13 +44,9 @@ class BookingPolicy
         return $this->update($user, $booking);
     }
 
-    /** Hapus permanen: khusus admin, dan bukan booking dari MRBS lama selama masa transisi. */
+    /** Hapus permanen: khusus admin. */
     public function delete(User $user, Booking $booking): Response
     {
-        if ($booking->isLegacyLocked()) {
-            return Response::deny(self::LEGACY_LOCKED);
-        }
-
         return $user->isAdmin() ? Response::allow() : Response::deny('Hanya admin yang dapat menghapus booking.');
     }
 }

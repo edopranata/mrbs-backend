@@ -21,7 +21,11 @@ class AppSettings
         'app_name', 'app_subtitle',
         'open_time', 'close_time', 'slot_minutes',
         'min_duration', 'max_duration', 'max_advance_days', 'max_repeat_weeks',
+        ...self::MAINTENANCE_KEYS,
     ];
+
+    /** Pengaturan pemeliharaan: hanya untuk menu Pengaturan, tidak ikut endpoint publik. */
+    public const MAINTENANCE_KEYS = ['audit_retention_days', 'log_retention_days', 'cache_clear_days'];
 
     private const CACHE_KEY = 'mrbs.settings';
 

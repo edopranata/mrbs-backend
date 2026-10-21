@@ -3,20 +3,16 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\MassPrunable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
  * Catatan aktivitas (siapa melakukan apa, kapan, dari mana). Hanya bisa ditambah, tidak diubah;
- * dihapus otomatis setelah masa simpan (MRBS_AUDIT_RETENTION_DAYS) lewat `model:prune`.
+ * dihapus otomatis setelah masa simpan (Pengaturan → Pemeliharaan) oleh `mrbs:cleanup`.
  */
 #[Fillable(['user_id', 'user_name', 'action', 'subject_type', 'subject_id', 'description', 'changes', 'meta', 'ip_address', 'user_agent', 'created_at'])]
 class AuditLog extends Model
 {
-    use MassPrunable;
-
     public const UPDATED_AT = null;
 
     /** Kelompok aktivitas (awalan `action`) untuk filter. */
@@ -47,7 +43,7 @@ class AuditLog extends Model
         'user.deleted' => 'Hapus user',
         'settings.updated' => 'Ubah pengaturan',
         'settings.reset' => 'Reset pengaturan',
-        'system.legacy_sync' => 'Sinkronisasi MRBS lama',
+        'system.cleanup' => 'Pembersihan data',
     ];
 
     /** Nama kolom yang mudah dibaca untuk daftar perubahan. */
@@ -81,6 +77,9 @@ class AuditLog extends Model
         'max_duration' => 'Durasi maksimal (menit)',
         'max_advance_days' => 'Batas hari pemesanan',
         'max_repeat_weeks' => 'Batas minggu berulang',
+        'audit_retention_days' => 'Masa simpan audit log (hari)',
+        'log_retention_days' => 'Masa simpan file log (hari)',
+        'cache_clear_days' => 'Kosongkan cache tiap (hari)',
     ];
 
     protected function casts(): array
@@ -103,18 +102,5 @@ class AuditLog extends Model
     public function category(): string
     {
         return strstr($this->action, '.', true) ?: $this->action;
-    }
-
-    /**
-     * @return Builder<AuditLog>
-     */
-    public function prunable(): Builder
-    {
-        $days = (int) config('mrbs.audit_retention_days');
-
-        // 0 = simpan selamanya.
-        return $days > 0
-            ? static::where('created_at', '<', now()->subDays($days))
-            : static::whereRaw('1 = 0');
     }
 }

@@ -39,11 +39,10 @@ Dashboard, Jadwal Ruangan, dan Semua Booking (plus Profil untuk ganti password).
 ### Audit Log
 
 Setiap aktivitas penting dicatat: login (berhasil & gagal), logout, ubah profil/password, buat/ubah/
-pindah/batal/hapus booking, kelola ruangan & user, ubah pengaturan, dan ringkasan sinkronisasi MRBS
-lama. Tiap catatan memuat pelaku, waktu, alamat IP, perangkat, serta kolom yang berubah (sebelum →
-sesudah); password tidak pernah dicatat. Admin & System Admin melihatnya di menu **Audit Log**.
-Catatan lebih lama dari `MRBS_AUDIT_RETENTION_DAYS` (default 365 hari, `0` = selamanya) dihapus
-otomatis setiap hari oleh scheduler (cron `schedule:run` yang sama dengan sinkronisasi).
+pindah/batal/hapus booking, kelola ruangan & user, ubah pengaturan, dan pembersihan data. Tiap catatan
+memuat pelaku, waktu, alamat IP, perangkat, serta kolom yang berubah (sebelum → sesudah); password tidak
+pernah dicatat. Admin & System Admin melihatnya di menu **Audit Log**. Masa simpannya diatur di menu
+Pengaturan (lihat *Pemeliharaan otomatis*).
 
 ### Menu Pengaturan (System Admin)
 
@@ -51,6 +50,21 @@ System Admin dapat mengubah nama & subjudul aplikasi, jam operasional, interval 
 menit), durasi minimal/maksimal, batas hari pemesanan, dan batas minggu booking berulang langsung
 dari aplikasi. Nilai dari menu ini disimpan di tabel `settings` dan **menimpa** nilai `MRBS_*` di
 `.env`; tombol *Kembalikan semua ke default* menghapus nilai tersimpan sehingga `.env` berlaku lagi.
+
+### Pemeliharaan otomatis
+
+Setiap hari pukul `MRBS_CLEANUP_TIME` (default 01:00) scheduler menjalankan `php artisan mrbs:cleanup`:
+
+| Yang dibersihkan | Pengaturan (menu Pengaturan → Pemeliharaan Otomatis) | Default |
+|---|---|---|
+| Audit log lebih lama dari N hari | Masa simpan audit log | 365 hari |
+| Isi file log Laravel (`storage/logs/*.log`) lebih lama dari N hari | Masa simpan file log | 14 hari |
+| Seluruh cache aplikasi (cache data + view terkompilasi) | Kosongkan cache tiap N hari | 7 hari |
+| Cache yang sudah kedaluwarsa & sesi lama | selalu | — |
+
+Isi `0` untuk menonaktifkan salah satunya. Ringkasan pembersihan terakhir tampil di menu Pengaturan
+(ada tombol *Jalankan sekarang*) dan tercatat di Audit Log. Jalankan manual: `php artisan mrbs:cleanup`
+(`--clear-cache` untuk sekaligus mengosongkan seluruh cache).
 
 ## Aturan booking
 
@@ -183,6 +197,20 @@ Idealnya document root web diarahkan ke folder `public/`. Bila repository terpas
 semua request ke `public/`. Dengan begitu aplikasi tampil normal (bukan *403 Forbidden*) dan file
 aplikasi seperti `.env`, `vendor/`, `storage/`, dan `.git/` tidak bisa diakses dari web.
 
+### Cron (scheduler)
+
+Pemeliharaan otomatis butuh Laravel scheduler. hPanel → **Advanced → Cron Jobs** → pilih **Kustom**,
+jadwal **setiap menit** (`* * * * *`):
+
+```bash
+/bin/bash /home/<user>/domains/<domain>/public_html/scripts/cron-schedule.sh
+```
+
+`scripts/cron-schedule.sh` pindah sendiri ke folder aplikasi dan memilih PHP ≥ 8.4 (bukan
+`/usr/bin/php` bawaan hPanel yang bisa lebih lama; paksa dengan `PHP_BIN=...` bila perlu). Cek lokasi
+aplikasi lewat SSH: `ls ~/domains/*/public_html/artisan`. Keluaran putaran terakhir ada di
+`storage/logs/cron-schedule.log`; bila gagal, pesannya juga tampil di "Lihat Output" hPanel.
+
 ### PHP & Composer di SSH (shared hosting)
 
 Bila `php -v` di SSH masih versi lama padahal PHP website sudah diganti di panel hosting, jalankan
@@ -211,97 +239,6 @@ Untuk otomatisasi bisa memakai opsi `--username= --name= --email= --password=` (
 di shell bersama karena tersimpan di riwayat). Bila username sudah ada, tambahkan `--force` untuk
 menjadikannya System Admin, mengaktifkannya, dan mengganti passwordnya (sesi lamanya dicabut).
 
-## Migrasi data dari MRBS lama (mrbs-code)
-
-Booking dari aplikasi MRBS lama (PHP, [mrbs-code](https://github.com/meeting-room-booking-system/mrbs-code))
-bisa dipindahkan dengan `php artisan mrbs:import-legacy`. Database lama hanya dibaca, tidak pernah diubah.
-
-1. Isi koneksi database lama di `.env` (lihat `.env.example`):
-
-   ```dotenv
-   LEGACY_DB_HOST=127.0.0.1
-   LEGACY_DB_DATABASE=db_mrbs
-   LEGACY_DB_USERNAME=...
-   LEGACY_DB_PASSWORD=...
-   LEGACY_DB_PREFIX=mrbs_
-   ```
-
-2. Buat file pemetaan di `storage/app/private/legacy/` (tidak di-commit karena berisi data asli):
-
-   ```bash
-   php artisan mrbs:import-legacy --make-maps
-   ```
-
-   - `users.csv`: isi kolom `new_username` untuk setiap pembuat booking lama (`create_by`).
-     Username harus sudah ada di database tujuan. Baris yang dikosongkan dilewati.
-   - `rooms.csv`: ruangan lama → kode ruangan baru. Terisi otomatis bila namanya sama
-     (mis. "BRILIAN ROOM [Lt 3]" → `BRILIAN`); periksa dan lengkapi sisanya.
-   - Menjalankan `--make-maps` lagi tidak menimpa isian yang sudah ada.
-
-3. Periksa hasilnya tanpa menyimpan apa pun, lalu impor:
-
-   ```bash
-   php artisan mrbs:import-legacy --dry-run
-   php artisan mrbs:import-legacy
-   ```
-
-Aturan konversi: tipe `I`/`E` → internal/eksternal, waktu Unix → zona waktu area (Asia/Jakarta), seri
-berulang → satu `series_id`, booking *tentative* → booking biasa, booking ≥ 24 jam diimpor apa adanya,
-dan nomor WA PIC (`No_WA_PIC`) ditambahkan ke deskripsi. Booking yang bentrok dengan booking yang sudah
-ada di aplikasi ini dilewati (laporkan dengan `--dry-run`; paksa dengan `--allow-conflicts`). Pembuat yang
-belum dipetakan dilewati, atau dialihkan ke satu akun dengan `--fallback-user=username`.
-
-Setiap booking hasil impor menyimpan `legacy_id`, jadi perintah ini aman dijalankan berulang (mis. setelah
-melengkapi pemetaan user): entri yang sudah diimpor dilewati.
-
-**Di server produksi:** unggah dump database lama sebagai database terpisah, isi `LEGACY_DB_*` di `.env`
-server, salin `users.csv` & `rooms.csv` ke `storage/app/private/legacy/`, jalankan `php artisan migrate`,
-lalu `--dry-run` dan impor seperti di atas.
-
-### Sinkronisasi otomatis selama masa transisi
-
-Selama MRBS lama masih dipakai, booking-nya bisa disalin otomatis tiap beberapa menit
-(satu arah: MRBS lama → aplikasi ini) dengan `php artisan mrbs:sync-legacy`:
-
-- booking **baru** di MRBS lama diimpor;
-- booking yang **diubah** di MRBS lama (kolom `timestamp`) diperbarui;
-- booking **mendatang** yang **dihapus** di MRBS lama dibatalkan ("Dihapus di MRBS lama");
-  riwayat yang sudah lewat tidak disentuh;
-- booking yang berasal dari MRBS lama menjadi **hanya-baca** di aplikasi ini (tidak bisa diubah,
-  dibatalkan, atau dihapus) dan diberi tanda "Dari MRBS lama", karena perubahan di sini akan
-  tertimpa sinkronisasi berikutnya;
-- pengaman: bila database lama kosong atau terlalu banyak booking hilang sekaligus
-  (`LEGACY_SYNC_MAX_CANCELLATIONS`, default 50), pembatalan otomatis dilewati dan dilaporkan.
-
-Langkah di server (hPanel):
-
-1. Pastikan server bisa menghubungi database MRBS lama (izinkan *remote MySQL* dari IP server di
-   tempat MRBS lama berjalan), lalu isi `LEGACY_DB_*` di `.env` server.
-2. Unggah `users.csv` & `rooms.csv` ke `storage/app/private/legacy/` dan jalankan `php artisan migrate`.
-3. Periksa: `php artisan mrbs:sync-legacy --check` lalu `php artisan mrbs:sync-legacy --dry-run`.
-4. Aktifkan di `.env`:
-
-   ```dotenv
-   LEGACY_SYNC_ENABLED=true
-   LEGACY_SYNC_INTERVAL=5   # menit
-   ```
-
-   lalu `php artisan config:cache` (bila konfigurasi di-cache).
-5. hPanel → **Advanced → Cron Jobs** → pilih **Kustom**, jadwal **setiap menit** (`* * * * *`):
-
-   ```bash
-   /bin/bash /home/<user>/domains/<domain>/public_html/scripts/cron-schedule.sh
-   ```
-
-   `scripts/cron-schedule.sh` pindah sendiri ke folder aplikasi dan memilih PHP ≥ 8.4 (bukan
-   `/usr/bin/php` bawaan hPanel yang bisa lebih lama; paksa dengan `PHP_BIN=...` bila perlu).
-   Cek lokasi aplikasi lewat SSH: `ls ~/domains/*/public_html/artisan`. Keluaran putaran terakhir ada
-   di `storage/logs/cron-schedule.log`; bila gagal, pesannya juga tampil di "Lihat Output" hPanel.
-
-Hasil tiap sinkronisasi dicatat di `storage/logs/legacy-sync.log`, dan peringatan (pembuat/ruangan
-belum dipetakan, bentrok) juga masuk `storage/logs/laravel.log`. Setelah masa transisi selesai,
-ubah `LEGACY_SYNC_ENABLED=false`: jadwal berhenti dan booking dari MRBS lama bisa dikelola seperti biasa.
-
 ## Ringkasan API
 
 Semua endpoint berawalan `/api` dan (kecuali login) memakai header `Authorization: Bearer <token>`.
@@ -314,9 +251,11 @@ Semua endpoint berawalan `/api` dan (kecuali login) memakai header `Authorizatio
 | PUT | `/auth/profile` | login | Ubah nama, department, telepon |
 | PUT | `/auth/password` | login | `{current_password, password, password_confirmation}` |
 | GET | `/settings` | publik | Nama aplikasi, jam operasional & aturan booking yang berlaku |
-| GET | `/settings/manage` | system admin | Nilai berlaku, nilai default (.env), dan kunci yang ditimpa |
-| PUT | `/settings` | system admin | Ubah pengaturan (`app_name`, `app_subtitle`, `open_time`, `close_time`, `slot_minutes`, `min_duration`, `max_duration`, `max_advance_days`, `max_repeat_weeks`) |
+| GET | `/settings/manage` | system admin | Nilai berlaku, nilai default (.env), kunci yang ditimpa, dan status pembersihan terakhir |
+| PUT | `/settings` | system admin | Ubah pengaturan (`app_name`, `app_subtitle`, `open_time`, `close_time`, `slot_minutes`, `min_duration`, `max_duration`, `max_advance_days`, `max_repeat_weeks`, `audit_retention_days`, `log_retention_days`, `cache_clear_days`) |
+| GET | `/audit-logs` | admin | Audit log; filter `category`, `action`, `user_id`, `search`, `from`, `to` |
 | DELETE | `/settings` | system admin | Kembalikan semua pengaturan ke default |
+| POST | `/settings/maintenance` | system admin | Jalankan pembersihan sekarang (`clear_cache=true` ikut mengosongkan seluruh cache) |
 | GET | `/dashboard` | login | Statistik & booking hari ini (+ statistik admin) |
 | GET | `/schedule?date=YYYY-MM-DD` atau `?from=&to=` | login | Ruangan aktif + booking pada tanggal/rentang tsb (maks. 42 hari). Filter opsional: `floor`, `room_id` |
 | GET | `/rooms` | login | Daftar ruangan (user hanya melihat yang aktif) |
@@ -341,6 +280,8 @@ Format waktu request: `"YYYY-MM-DD HH:mm"`. Waktu di response adalah waktu lokal
 ```
 app/Services/BookingService.php     # aturan bisnis, cek bentrok, booking berulang
 app/Services/AppSettings.php        # pengaturan dari menu Pengaturan (menimpa config/mrbs.php)
+app/Services/Maintenance.php        # pembersihan harian (mrbs:cleanup): audit log, file log, cache, sesi
+app/Support/Audit.php               # pencatat audit log
 app/Policies/BookingPolicy.php      # siapa boleh ubah/batalkan
 app/Http/Controllers/Api/           # controller REST
 app/Http/Middleware/                # EnsureUserIsAdmin, EnsureUserIsSystemAdmin, EnsureUserIsActive

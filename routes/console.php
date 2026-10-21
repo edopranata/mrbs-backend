@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\AuditLog;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -9,14 +8,8 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-// Masa transisi: salin booking dari MRBS lama secara berkala (LEGACY_SYNC_ENABLED=true).
-// Di server, cron `php artisan schedule:run` dijalankan tiap menit (hPanel → Cron Jobs).
-if (config('mrbs.legacy_sync.enabled')) {
-    Schedule::command('mrbs:sync-legacy')
-        ->cron('*/'.min(59, config('mrbs.legacy_sync.interval')).' * * * *')
-        ->withoutOverlapping(30)
-        ->appendOutputTo(storage_path('logs/legacy-sync.log'));
-}
-
-// Hapus audit log yang melewati masa simpan (MRBS_AUDIT_RETENTION_DAYS).
-Schedule::command('model:prune', ['--model' => [AuditLog::class]])->daily();
+// Pemeliharaan harian: audit log & file log lama, cache, dan sesi (batasnya di menu Pengaturan).
+// Di server, cron `scripts/cron-schedule.sh` menjalankan `schedule:run` setiap menit.
+Schedule::command('mrbs:cleanup')
+    ->dailyAt(config('mrbs.cleanup_time'))
+    ->withoutOverlapping(60);

@@ -4,15 +4,20 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\AppSettings;
+use App\Services\Maintenance;
 use App\Support\Audit;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class SettingController extends Controller
 {
-    public function __construct(private readonly AppSettings $settings) {}
+    public function __construct(
+        private readonly AppSettings $settings,
+        private readonly Maintenance $maintenance,
+    ) {}
 
     /**
      * Pengaturan yang berlaku (publik: dipakai juga di halaman login untuk nama aplikasi).
@@ -20,7 +25,7 @@ class SettingController extends Controller
     public function index(): JsonResponse
     {
         return response()->json([
-            ...$this->settings->all(),
+            ...Arr::except($this->settings->all(), AppSettings::MAINTENANCE_KEYS),
             'timezone' => config('app.timezone'),
         ]);
     }
@@ -34,6 +39,7 @@ class SettingController extends Controller
             'values' => $this->settings->all(),
             'defaults' => $this->settings->defaults(),
             'overridden' => array_keys($this->settings->overrides()),
+            'maintenance' => $this->maintenance->status(),
         ]);
     }
 
@@ -49,6 +55,9 @@ class SettingController extends Controller
             'max_duration' => ['sometimes', 'required', 'integer', 'min:15', 'max:1440'],
             'max_advance_days' => ['sometimes', 'required', 'integer', 'min:1', 'max:365'],
             'max_repeat_weeks' => ['sometimes', 'required', 'integer', 'min:1', 'max:52'],
+            'audit_retention_days' => ['sometimes', 'required', 'integer', 'min:0', 'max:3650'],
+            'log_retention_days' => ['sometimes', 'required', 'integer', 'min:0', 'max:365'],
+            'cache_clear_days' => ['sometimes', 'required', 'integer', 'min:0', 'max:90'],
         ], attributes: [
             'app_name' => 'nama aplikasi',
             'app_subtitle' => 'subjudul',
@@ -59,6 +68,9 @@ class SettingController extends Controller
             'max_duration' => 'durasi maksimal',
             'max_advance_days' => 'batas hari pemesanan',
             'max_repeat_weeks' => 'batas minggu berulang',
+            'audit_retention_days' => 'masa simpan audit log',
+            'log_retention_days' => 'masa simpan file log',
+            'cache_clear_days' => 'interval pengosongan cache',
         ]);
 
         $this->ensureConsistent([...$this->settings->all(), ...$data]);
@@ -77,6 +89,18 @@ class SettingController extends Controller
         $before = $this->settings->all();
         $this->settings->reset();
         Audit::log('settings.reset', 'Mengembalikan semua pengaturan ke nilai default', changes: Audit::diff($before, $this->settings->all()));
+
+        return $this->manage();
+    }
+
+    /**
+     * Jalankan pembersihan sekarang (tombol di menu Pengaturan); `clear_cache` ikut mengosongkan
+     * seluruh cache tanpa menunggu jadwalnya.
+     */
+    public function runMaintenance(Request $request): JsonResponse
+    {
+        $report = $this->maintenance->run($request->boolean('clear_cache'));
+        Audit::log('system.cleanup', 'Menjalankan pembersihan data secara manual. '.Maintenance::summary($report));
 
         return $this->manage();
     }
