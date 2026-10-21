@@ -143,6 +143,24 @@ class AuditLogTest extends TestCase
         $this->getJson('/api/audit-logs?category=salah')->assertUnprocessable();
     }
 
+    public function test_activity_can_be_filtered_per_user(): void
+    {
+        $budi = User::factory()->create(['name' => 'Budi', 'username' => 'budi', 'password' => 'rahasia123']);
+        $this->postJson('/api/auth/login', ['username' => 'budi', 'password' => 'salah-sekali'])->assertUnprocessable();
+        $this->postJson('/api/auth/login', ['username' => 'tamu', 'password' => 'apa-saja'])->assertUnprocessable();
+        $this->actingAs($budi)->putJson('/api/auth/profile', ['name' => 'Budi S'])->assertOk();
+        $this->actingAs($this->admin)->putJson('/api/auth/profile', ['name' => 'Ani A'])->assertOk();
+
+        $this->actingAs($this->admin)->getJson("/api/audit-logs?user_id={$budi->id}")
+            ->assertOk()
+            ->assertJsonCount(2, 'data')
+            ->assertJsonPath('data.0.user.id', $budi->id);
+
+        $this->getJson('/api/audit-logs?user_name=tamu')
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.description', 'Login gagal: username tidak terdaftar');
+    }
+
     public function test_deleted_actor_name_is_kept(): void
     {
         $user = User::factory()->create(['name' => 'Dodi', 'username' => 'dodi']);

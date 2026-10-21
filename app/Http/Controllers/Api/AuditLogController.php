@@ -20,6 +20,8 @@ class AuditLogController extends Controller
             'category' => ['nullable', Rule::in(array_keys(AuditLog::CATEGORIES))],
             'action' => ['nullable', Rule::in(array_keys(AuditLog::ACTIONS))],
             'user_id' => ['nullable', 'integer'],
+            // Pelaku tanpa akun: "Sistem" atau username yang dicoba saat login gagal.
+            'user_name' => ['nullable', 'string', 'max:255'],
             'subject_type' => ['nullable', 'string', 'max:30'],
             'subject_id' => ['nullable', 'integer'],
             'search' => ['nullable', 'string', 'max:100'],
@@ -33,6 +35,9 @@ class AuditLogController extends Controller
             ->when($request->filled('category'), fn ($q) => $q->where('action', 'like', $request->input('category').'.%'))
             ->when($request->filled('action'), fn ($q) => $q->where('action', $request->input('action')))
             ->when($request->filled('user_id'), fn ($q) => $q->where('user_id', $request->integer('user_id')))
+            ->when($request->filled('user_name') && ! $request->filled('user_id'), fn ($q) => $q
+                ->whereNull('user_id')
+                ->where('user_name', $request->input('user_name')))
             ->when($request->filled('subject_type'), fn ($q) => $q
                 ->where('subject_type', $request->input('subject_type'))
                 ->when($request->filled('subject_id'), fn ($q) => $q->where('subject_id', $request->integer('subject_id'))))
